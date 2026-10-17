@@ -4,7 +4,7 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: "pip install -r requirements.txt && python scripts/generate_corpus.py && python -m src.cli ingest --store lancedb"
+    buildCommand: "pip install -r requirements.txt && python scripts/generate_corpus.py && python -m src.cli ingest --store lancedb && python -m src.cli ingest --store qdrant"
     startCommand: "uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
