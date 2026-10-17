@@ -145,12 +145,21 @@ class GroundedRAGService:
                     continue
 
             if errors and not answer_text:
-                answer_text = f"Error communicating with Groq API: {errors[0]}"
+                top_c = filtered_chunks[0]
+                answer_text = (
+                    f"Based on [{top_c.filename} - {top_c.section}]:\n\n"
+                    f"{top_c.text.strip()}\n\n"
+                    f"[Chunk-1]\n\n"
+                    f"⚠️ Note: Groq returned ({errors[0].splitlines()[0]}). "
+                    f"To enable full LLM generation, set a valid GROQ_API_KEY from https://console.groq.com/keys in your Render Environment settings."
+                )
         else:
-            # Informative fallback if GROQ_API_KEY is not yet provided
+            top_c = filtered_chunks[0]
             answer_text = (
-                f"[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\n"
-                f"Based on [Chunk-1], the retrieved context discusses: {filtered_chunks[0].text[:180]}..."
+                f"Based on [{top_c.filename} - {top_c.section}]:\n\n"
+                f"{top_c.text.strip()}\n\n"
+                f"[Chunk-1]\n\n"
+                f"⚠️ Note: GROQ_API_KEY is not configured. Set your free key from https://console.groq.com/keys."
             )
 
         gen_elapsed_ms = (time.perf_counter() - gen_start) * 1000.0
