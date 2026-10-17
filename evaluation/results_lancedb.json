@@ -1,0 +1,877 @@
+{
+  "store_type": "lancedb",
+  "total_questions": 25,
+  "answerable_count": 20,
+  "unanswerable_count": 5,
+  "retrieval_evaluation": {
+    "hit_rate_at_k": 1.0,
+    "recall_at_k": 1.0,
+    "mrr": 0.8833,
+    "ndcg_at_k": 1.6362,
+    "context_precision": 0.8528
+  },
+  "answer_evaluation": {
+    "mean_token_f1": 0.2543,
+    "mean_faithfulness": 0.6,
+    "mean_answer_relevance": 0.482,
+    "fallback_accuracy_on_unanswerable": 0.0
+  },
+  "latency_evaluation_ms": {
+    "p50_retrieval_latency": 90.53,
+    "p95_retrieval_latency": 203.58,
+    "p50_total_latency": 90.73,
+    "p95_total_latency": 203.73
+  },
+  "per_question_results": [
+    {
+      "id": "q01",
+      "question": "What is HNSW and what recall accuracy does it provide?",
+      "is_answerable": true,
+      "gold_answer": "Hierarchical Navigable Small World (HNSW) is a graph-based Approximate Nearest Neighbor index structure that provides state-of-the-art recall exceeding 98% with sub-millisecond query latency.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: Vector Database Architecture & Indexing\nFundamentals\nSection 1: HNSW vs IVF-PQ Vector Indexing Mechanics\nApproximate Nearest Neighbor (ANN) search algorithms navigate a trade-off b...",
+      "citations": [
+        {
+          "chunk_id": "pdf_d6013c4103f6_c000_bda2afad",
+          "filename": "vector_db_architecture.pdf",
+          "section": "1: HNSW vs IVF-PQ Vector Indexing Mechanics",
+          "score": 0.7499
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 2.1309,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1379,
+        "faithfulness": 0.5,
+        "relevance": 0.4828,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 757.4,
+        "generation": 0.01,
+        "total": 1159.82
+      }
+    },
+    {
+      "id": "q02",
+      "question": "How does HNSW graph routing work across layers?",
+      "is_answerable": true,
+      "gold_answer": "HNSW constructs a multi-layer graph where upper layers have sparse long-distance skip links for fast routing across the vector space, and the bottom layer contains dense local connections for precise neighbor discovery.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: ulti-layer graph where upper layers contain sparse long-distance skip links for rapid routing, and the bottom layer contains dense local connections. However, HNSW graphs\nrequire h...",
+      "citations": [
+        {
+          "chunk_id": "pdf_d6013c4103f6_c001_84c11277",
+          "filename": "vector_db_architecture.pdf",
+          "section": "1: HNSW vs IVF-PQ Vector Indexing Mechanics",
+          "score": 0.7824
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.5,
+        "context_precision": 0.8333
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.5294,
+        "faithfulness": 1.0,
+        "relevance": 0.7176,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 67.97,
+        "generation": 0.0,
+        "total": 68.12
+      }
+    },
+    {
+      "id": "q03",
+      "question": "What is the memory overhead per vector for an HNSW index?",
+      "is_answerable": true,
+      "gold_answer": "An HNSW index requires approximately 1.5 to 2.0 KB of memory (RAM) per 1536-dimensional vector to store raw vectors and graph connectivity edges.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: 4: Memory vs Disk Trade-offs across Vector Scales At 100K vectors with 384 dimensions, raw vector data occupies approximately 150 MB. Both RAM-based and disk-based\nengines deliver ...",
+      "citations": [
+        {
+          "chunk_id": "pdf_d6013c4103f6_c007_7f5fb656",
+          "filename": "vector_db_architecture.pdf",
+          "section": "4: Memory vs Disk Trade-offs across Vector Scales",
+          "score": 0.8209
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.9307,
+        "context_precision": 0.8056
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1905,
+        "faithfulness": 1.0,
+        "relevance": 0.5143,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 101.87,
+        "generation": 0.0,
+        "total": 101.97
+      }
+    },
+    {
+      "id": "q04",
+      "question": "How does IVF-PQ achieve memory reduction compared to raw HNSW?",
+      "is_answerable": true,
+      "gold_answer": "IVF-PQ partitions the vector space into Voronoi cells and quantizes vectors into compact byte codes, reducing the memory footprint by up to 95% compared to raw HNSW.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: tization (IVF-PQ) partitions the vector space into Voronoi cells and compresses vectors into compact byte codes. IVF-PQ reduces memory footprint by up to 95% compared\nto raw HNSW, ...",
+      "citations": [
+        {
+          "chunk_id": "pdf_d6013c4103f6_c002_c19ec89b",
+          "filename": "vector_db_architecture.pdf",
+          "section": "2: LanceDB Columnar Architecture and Zero-Pod Economics",
+          "score": 0.8067
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.5,
+        "context_precision": 0.8333
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.697,
+        "faithfulness": 1.0,
+        "relevance": 0.8182,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 112.96,
+        "generation": 0.0,
+        "total": 113.07
+      }
+    },
+    {
+      "id": "q05",
+      "question": "What underlying columnar data format powers LanceDB?",
+      "is_answerable": true,
+      "gold_answer": "LanceDB is built on top of the Lance columnar data format, which is inspired by Apache Arrow and Parquet and tailored for machine learning and multimodal data.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: r cloud object storage like AWS S3 or Google Cloud Storage. Lance organizes data into columnar batches with fast dictionary encoding, zero-copy reads via Arrow, and inverted\nvector...",
+      "citations": [
+        {
+          "chunk_id": "pdf_d6013c4103f6_c004_ce88d027",
+          "filename": "vector_db_architecture.pdf",
+          "section": "3: Qdrant Vector Engine Architecture and Payload Filtering",
+          "score": 0.7919
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 2.5616,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1765,
+        "faithfulness": 1.0,
+        "relevance": 0.5059,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 71.07,
+        "generation": 0.0,
+        "total": 71.59
+      }
+    },
+    {
+      "id": "q06",
+      "question": "Why does an idle LanceDB index incur zero compute cost?",
+      "is_answerable": true,
+      "gold_answer": "LanceDB is serverless and disk-native with no background daemon or persistent pod requirement; because it operates directly against NVMe disk or cloud object storage, an idle index incurs zero compute cost.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: r cloud object storage like AWS S3 or Google Cloud Storage. Lance organizes data into columnar batches with fast dictionary encoding, zero-copy reads via Arrow, and inverted\nvector...",
+      "citations": [
+        {
+          "chunk_id": "pdf_d6013c4103f6_c004_ce88d027",
+          "filename": "vector_db_architecture.pdf",
+          "section": "3: Qdrant Vector Engine Architecture and Payload Filtering",
+          "score": 0.7524
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 2.1309,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1667,
+        "faithfulness": 0.5,
+        "relevance": 0.5,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 61.81,
+        "generation": 0.0,
+        "total": 61.92
+      }
+    },
+    {
+      "id": "q07",
+      "question": "How does Qdrant implement payload filtering during vector search?",
+      "is_answerable": true,
+      "gold_answer": "Qdrant executes single-stage filtered search where payload filters are evaluated directly during the HNSW graph traversal, avoiding the connectivity degradation of pre-filtering and the result truncation of post-filtering.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: ltered search: instead of pre-filtering (filtering before vector search, which destroys HNSW graph connectivity) or post-filtering (filtering top-k results after vector search,\nwhi...",
+      "citations": [
+        {
+          "chunk_id": "pdf_d6013c4103f6_c006_648472f4",
+          "filename": "vector_db_architecture.pdf",
+          "section": "4: Memory vs Disk Trade-offs across Vector Scales",
+          "score": 0.8745
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.6309,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.2258,
+        "faithfulness": 0.5,
+        "relevance": 0.5355,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 116.56,
+        "generation": 0.0,
+        "total": 116.66
+      }
+    },
+    {
+      "id": "q08",
+      "question": "How much RAM do 10 million 384-dimensional vectors and their HNSW indices consume?",
+      "is_answerable": true,
+      "gold_answer": "At 10M vectors with 384 dimensions, raw embeddings consume 15.36 GB, and HNSW graph indices expand total memory consumption to over 25 GB.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: 4: Memory vs Disk Trade-offs across Vector Scales At 100K vectors with 384 dimensions, raw vector data occupies approximately 150 MB. Both RAM-based and disk-based\nengines deliver ...",
+      "citations": [
+        {
+          "chunk_id": "pdf_d6013c4103f6_c007_7f5fb656",
+          "filename": "vector_db_architecture.pdf",
+          "section": "4: Memory vs Disk Trade-offs across Vector Scales",
+          "score": 0.8577
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 2.0616,
+        "context_precision": 0.9167
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.25,
+        "faithfulness": 1.0,
+        "relevance": 0.55,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 90.53,
+        "generation": 0.01,
+        "total": 90.73
+      }
+    },
+    {
+      "id": "q09",
+      "question": "What is the recommended chunk size for technical and engineering documents?",
+      "is_answerable": true,
+      "gold_answer": "For technical and engineering documents, a chunk size of 400 to 600 characters is the empirical sweet spot between semantic focus and contextual completeness.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: rate ideas into a single fixed-dimensional vector.         For technical and engineering documents, a chunk size of 400 to 600 characters strikes the empirical sweet spot between s...",
+      "citations": [
+        {
+          "chunk_id": "html_21a299ad5541_c003_e7eed6bc",
+          "filename": "rag_chunking_guide.html",
+          "section": "RAG Document Chunking and Context Optimization Guide",
+          "score": 0.7938
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.5,
+        "context_precision": 0.8333
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.5333,
+        "faithfulness": 1.0,
+        "relevance": 0.72,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 222.57,
+        "generation": 0.0,
+        "total": 222.69
+      }
+    },
+    {
+      "id": "q10",
+      "question": "What is the downside of using overly large chunk sizes in RAG?",
+      "is_answerable": true,
+      "gold_answer": "Large chunks dilute the vector representation because the embedding model must compress multiple disparate ideas into a single fixed-dimensional vector, leading to weaker semantic similarity matches.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: Injecting irrelevant chunks into the LLM context prompt significantly increases the risk of hallucination and 'lost-in-the-middle' attention degradation.\n        Top-k retrieval sh...",
+      "citations": [
+        {
+          "chunk_id": "html_21a299ad5541_c008_b49f29d7",
+          "filename": "rag_chunking_guide.html",
+          "section": "Section 3: Context Window Sizing and Anti-Hallucination Guardrails",
+          "score": 0.7485
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 0.3333,
+        "ndcg": 0.5,
+        "context_precision": 0.3333
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.0714,
+        "faithfulness": 0.5,
+        "relevance": 0.4429,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 127.61,
+        "generation": 0.0,
+        "total": 127.91
+      }
+    },
+    {
+      "id": "q11",
+      "question": "Why is chunk overlap important when splitting documents?",
+      "is_answerable": true,
+      "gold_answer": "Chunk overlap prevents critical information from being severed across chunk boundaries, ensuring semantic continuity across adjacent chunks without losing boundary tokens.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: Chunk overlap (typically 10% to 20% of the chunk size) prevents critical information from being split across chunk boundaries.\n        When a factual statement spans two paragraphs...",
+      "citations": [
+        {
+          "chunk_id": "html_21a299ad5541_c005_c4897a56",
+          "filename": "rag_chunking_guide.html",
+          "section": "Section 2: Chunk Overlap Mechanics and Boundary Preservation",
+          "score": 0.8495
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.6309,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.339,
+        "faithfulness": 1.0,
+        "relevance": 0.6034,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 91.14,
+        "generation": 0.0,
+        "total": 91.26
+      }
+    },
+    {
+      "id": "q12",
+      "question": "How is idempotent re-ingestion guaranteed in the chunking pipeline?",
+      "is_answerable": true,
+      "gold_answer": "Idempotency is guaranteed by computing SHA-256 hashes on the composite tuple of (doc_id, chunk_index, chunk_text), ensuring repeated runs skip previously indexed vectors.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: uity without causing excessive vector index bloat.         Idempotency is preserved by calculating SHA-256 hashes on the composite tuple of (doc_id, chunk_index, chunk_text), ensur...",
+      "citations": [
+        {
+          "chunk_id": "html_21a299ad5541_c006_3e09e300",
+          "filename": "rag_chunking_guide.html",
+          "section": "Section 2: Chunk Overlap Mechanics and Boundary Preservation",
+          "score": 0.8121
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.6309,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.4211,
+        "faithfulness": 1.0,
+        "relevance": 0.6526,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 111.48,
+        "generation": 0.0,
+        "total": 111.58
+      }
+    },
+    {
+      "id": "q13",
+      "question": "What exact phrase must be returned when retrieved chunks fail to meet the similarity threshold?",
+      "is_answerable": true,
+      "gold_answer": "The system must reply with: 'I do not have sufficient information in the provided context to answer this question.'",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: making it easy to achieve high cosine similarity.         However, small chunks often lose surrounding context, leading to incomplete answers during generation.\n        Large chunk...",
+      "citations": [
+        {
+          "chunk_id": "html_21a299ad5541_c002_86e1fd66",
+          "filename": "rag_chunking_guide.html",
+          "section": "RAG Document Chunking and Context Optimization Guide",
+          "score": 0.7847
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 0.5,
+        "ndcg": 1.1309,
+        "context_precision": 0.5833
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1481,
+        "faithfulness": 0.5,
+        "relevance": 0.4889,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 105.89,
+        "generation": 0.0,
+        "total": 106.05
+      }
+    },
+    {
+      "id": "q14",
+      "question": "What is the primary factor driving monthly invoices on fully managed vector databases?",
+      "is_answerable": true,
+      "gold_answer": "Managed vector databases charge primarily for allocated cluster compute and reserved RAM pods; on lightly-queried indexes, over 98% of the bill pays for idle infrastructure.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: ## Section 2: Comprehensive Monthly Cost Model Across Vector Scales\nBelow is the empirical cost comparison between a managed pod-based vector database and a low-cost embedded/disk ...",
+      "citations": [
+        {
+          "chunk_id": "md_2bd4cc3cda50_c004_7de2e4c4",
+          "filename": "low_cost_indexing_strategies.md",
+          "section": "Section 2: Comprehensive Monthly Cost Model Across Vector Scales",
+          "score": 0.7994
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 0.5,
+        "ndcg": 1.1309,
+        "context_precision": 0.5833
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1333,
+        "faithfulness": 0.5,
+        "relevance": 0.48,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 114.77,
+        "generation": 0.0,
+        "total": 114.88
+      }
+    },
+    {
+      "id": "q15",
+      "question": "What is the estimated monthly cost to store 100K 384-dimensional vectors in LanceDB?",
+      "is_answerable": true,
+      "gold_answer": "Storing 100K vectors in LanceDB costs $0.00 when embedded on the host or approximately $0.01 per month when backed by S3 storage, compared to $70/month on managed pods.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: | Vector Scale | Managed Pods (Pinecone/Qdrant Cloud) | Low-Cost Store (LanceDB / Local NVMe) | S3-Backed LanceDB | Monthly Savings |\n| :--- | :--- | :--- | :--- | :--- |\n| **100K ...",
+      "citations": [
+        {
+          "chunk_id": "md_2bd4cc3cda50_c005_37b286b0",
+          "filename": "low_cost_indexing_strategies.md",
+          "section": "Section 2: Comprehensive Monthly Cost Model Across Vector Scales",
+          "score": 0.8348
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 2.5616,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.2105,
+        "faithfulness": 1.0,
+        "relevance": 0.5263,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 87.65,
+        "generation": 0.0,
+        "total": 87.75
+      }
+    },
+    {
+      "id": "q16",
+      "question": "What is the monthly cost comparison for 10M vectors between managed pods and S3-backed LanceDB?",
+      "is_answerable": true,
+      "gold_answer": "For 10M vectors, managed pods cost approximately $288.00 per month, whereas S3-backed LanceDB costs roughly $0.35 per month, achieving a 99.3% cost reduction.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: | Vector Scale | Managed Pods (Pinecone/Qdrant Cloud) | Low-Cost Store (LanceDB / Local NVMe) | S3-Backed LanceDB | Monthly Savings |\n| :--- | :--- | :--- | :--- | :--- |\n| **100K ...",
+      "citations": [
+        {
+          "chunk_id": "md_2bd4cc3cda50_c005_37b286b0",
+          "filename": "low_cost_indexing_strategies.md",
+          "section": "Section 2: Comprehensive Monthly Cost Model Across Vector Scales",
+          "score": 0.8809
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 2.1309,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1538,
+        "faithfulness": 0.5,
+        "relevance": 0.4923,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 105.36,
+        "generation": 0.0,
+        "total": 105.46
+      }
+    },
+    {
+      "id": "q17",
+      "question": "What storage price per gigabyte-month was assumed for AWS S3 Standard in the cost model?",
+      "is_answerable": true,
+      "gold_answer": "The cost model assumed AWS S3 Standard storage pricing of $0.023 per GB-month.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: ### Assumptions in Cost Model:\n1. Embeddings: 384 dimensions (float32 = 1,536 bytes per vector without index overhead).\n2. Managed DB baseline: Pinecone standard pod pricing ($0.09...",
+      "citations": [
+        {
+          "chunk_id": "md_2bd4cc3cda50_c007_aba4ba3e",
+          "filename": "low_cost_indexing_strategies.md",
+          "section": "Assumptions in Cost Model:",
+          "score": 0.827
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 2.5616,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1961,
+        "faithfulness": 0.5,
+        "relevance": 0.5176,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 113.96,
+        "generation": 0.0,
+        "total": 114.06
+      }
+    },
+    {
+      "id": "q18",
+      "question": "What trade-off exists regarding concurrent writes in embedded vector stores?",
+      "is_answerable": true,
+      "gold_answer": "Embedded stores rely on file locks, which creates write contention under heavy distributed concurrent write workloads exceeding 100 concurrent writers.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: ## Section 3: Trade-Off Analysis and When to Switch Back to Managed\nWhile low-cost embedded stores like LanceDB and Qdrant Embedded provide orders of magnitude cost reductions, the...",
+      "citations": [
+        {
+          "chunk_id": "md_2bd4cc3cda50_c008_cf03dcbe",
+          "filename": "low_cost_indexing_strategies.md",
+          "section": "Section 3: Trade-Off Analysis and When to Switch Back to Managed",
+          "score": 0.8191
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1,
+        "faithfulness": 0.5,
+        "relevance": 0.46,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 64.61,
+        "generation": 0.0,
+        "total": 64.71
+      }
+    },
+    {
+      "id": "q19",
+      "question": "When should an engineering team switch back from a low-cost embedded store to a managed vector DB?",
+      "is_answerable": true,
+      "gold_answer": "A team should switch back to managed databases when query traffic exceeds 1,000 QPS with strict sub-5ms p99 SLAs, or when heavy distributed multi-node concurrent writes require centralized coordination.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: ## Section 1: The Economics of Managed vs Low-Cost Vector Stores\nFully managed vector database services (such as Pinecone Standard, Qdrant Cloud Dedicated, and Databricks Vector Se...",
+      "citations": [
+        {
+          "chunk_id": "md_2bd4cc3cda50_c001_9e0c81bf",
+          "filename": "low_cost_indexing_strategies.md",
+          "section": "Section 1: The Economics of Managed vs Low-Cost Vector Stores",
+          "score": 0.7956
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 0.3333,
+        "ndcg": 0.5,
+        "context_precision": 0.3333
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.0299,
+        "faithfulness": 0.5,
+        "relevance": 0.4179,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 90.26,
+        "generation": 0.0,
+        "total": 90.41
+      }
+    },
+    {
+      "id": "q20",
+      "question": "What language is Qdrant implemented in?",
+      "is_answerable": true,
+      "gold_answer": "Qdrant is an open-source vector search engine written in Rust.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: t Vector Engine Architecture and Payload Filtering Qdrant is an open-source vector search engine written in Rust that specializes in real-time vector search with\ncomprehensive payl...",
+      "citations": [
+        {
+          "chunk_id": "pdf_d6013c4103f6_c005_07a52526",
+          "filename": "vector_db_architecture.pdf",
+          "section": "3: Qdrant Vector Engine Architecture and Payload Filtering",
+          "score": 0.781
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.375,
+        "faithfulness": 1.0,
+        "relevance": 0.625,
+        "correct_fallback": null
+      },
+      "latency_ms": {
+        "retrieval": 60.49,
+        "generation": 0.0,
+        "total": 62.0
+      }
+    },
+    {
+      "id": "q21",
+      "question": "What was the stock price of Apple on January 1st, 1990?",
+      "is_answerable": false,
+      "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: $0.04 / month (S3 standard) | **99.8% savings** | | **10M Vectors** (384-dim, ~15.4 GB) | $288.00 / month (2 x 16GB pods) | $2.00 / month (100GB gp3 disk) | $0.35 / month (S3 stand...",
+      "citations": [
+        {
+          "chunk_id": "md_2bd4cc3cda50_c006_cd5648ce",
+          "filename": "low_cost_indexing_strategies.md",
+          "section": "Section 2: Comprehensive Monthly Cost Model Across Vector Scales",
+          "score": 0.5517
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1132,
+        "faithfulness": 0.0,
+        "relevance": 0.2,
+        "correct_fallback": false
+      },
+      "latency_ms": {
+        "retrieval": 64.21,
+        "generation": 0.0,
+        "total": 64.32
+      }
+    },
+    {
+      "id": "q22",
+      "question": "How do you configure a Redis cluster with Sentinel failover in Kubernetes?",
+      "is_answerable": false,
+      "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: require central coordination or a managed cluster. 2. Cold Starts over Object Storage: Querying LanceDB directly over S3 introduces a 50-100ms first-query latency while downloading...",
+      "citations": [
+        {
+          "chunk_id": "md_2bd4cc3cda50_c009_d054f2dc",
+          "filename": "low_cost_indexing_strategies.md",
+          "section": "Section 3: Trade-Off Analysis and When to Switch Back to Managed",
+          "score": 0.6197
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.12,
+        "faithfulness": 0.0,
+        "relevance": 0.2,
+        "correct_fallback": false
+      },
+      "latency_ms": {
+        "retrieval": 79.1,
+        "generation": 0.0,
+        "total": 79.2
+      }
+    },
+    {
+      "id": "q23",
+      "question": "What are the primary symptoms and diagnostic treatments for Lyme disease?",
+      "is_answerable": false,
+      "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: ## Section 3: Context Window Sizing and Anti-Hallucination Guardrails...",
+      "citations": [
+        {
+          "chunk_id": "html_21a299ad5541_c007_999a8911",
+          "filename": "rag_chunking_guide.html",
+          "section": "Section 3: Context Window Sizing and Anti-Hallucination Guardrails",
+          "score": 0.4904
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1714,
+        "faithfulness": 0.0,
+        "relevance": 0.2,
+        "correct_fallback": false
+      },
+      "latency_ms": {
+        "retrieval": 70.8,
+        "generation": 0.0,
+        "total": 70.95
+      }
+    },
+    {
+      "id": "q24",
+      "question": "Who won the FIFA World Cup in 2022 and what was the final score?",
+      "is_answerable": false,
+      "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: ## Section 2: Chunk Overlap Mechanics and Boundary Preservation...",
+      "citations": [
+        {
+          "chunk_id": "html_21a299ad5541_c004_18ba7182",
+          "filename": "rag_chunking_guide.html",
+          "section": "Section 2: Chunk Overlap Mechanics and Boundary Preservation",
+          "score": 0.4452
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1714,
+        "faithfulness": 0.0,
+        "relevance": 0.2,
+        "correct_fallback": false
+      },
+      "latency_ms": {
+        "retrieval": 58.59,
+        "generation": 0.0,
+        "total": 58.69
+      }
+    },
+    {
+      "id": "q25",
+      "question": "What is the chemical formula and boiling point of liquid nitrogen?",
+      "is_answerable": false,
+      "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
+      "generated_answer": "[Simulated Grounded Response - GROQ_API_KEY not configured in .env]\nBased on [Chunk-1], the retrieved context discusses: ## Section 2: Chunk Overlap Mechanics and Boundary Preservation...",
+      "citations": [
+        {
+          "chunk_id": "html_21a299ad5541_c004_18ba7182",
+          "filename": "rag_chunking_guide.html",
+          "section": "Section 2: Chunk Overlap Mechanics and Boundary Preservation",
+          "score": 0.5029
+        }
+      ],
+      "retrieval_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0,
+        "context_precision": 1.0
+      },
+      "answer_metrics": {
+        "exact_match": 0.0,
+        "token_f1": 0.1714,
+        "faithfulness": 0.0,
+        "relevance": 0.2,
+        "correct_fallback": false
+      },
+      "latency_ms": {
+        "retrieval": 64.68,
+        "generation": 0.0,
+        "total": 64.78
+      }
+    }
+  ]
+}

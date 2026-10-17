@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RAG Document Chunking and Context Optimization Guide</title>
+</head>
+<body>
+    <h1>RAG Document Chunking and Context Optimization Guide</h1>
+    
+    <h2>Section 1: Chunking Granularity and Window Strategies</h2>
+    <p>
+        Document chunking is the process of breaking large text corpora into discrete, semantically coherent segments suitable for vector embedding and LLM context injection.
+        The choice of chunk size directly impacts both retrieval precision and generation groundedness.
+        Small chunks (100 to 300 characters) offer high semantic precision: the embedding represents a single concept with minimal noise, making it easy to achieve high cosine similarity.
+        However, small chunks often lose surrounding context, leading to incomplete answers during generation.
+        Large chunks (800 to 2000 characters) preserve rich surrounding context and multi-sentence arguments, but dilute the vector representation because the embedding model must compress multiple disparate ideas into a single fixed-dimensional vector.
+        For technical and engineering documents, a chunk size of 400 to 600 characters strikes the empirical sweet spot between semantic focus and contextual completeness.
+    </p>
+
+    <h2>Section 2: Chunk Overlap Mechanics and Boundary Preservation</h2>
+    <p>
+        Chunk overlap (typically 10% to 20% of the chunk size) prevents critical information from being split across chunk boundaries.
+        When a factual statement spans two paragraphs, splitting strictly at fixed character counts can cut a sentence in half, causing both chunks to fail vector matching.
+        A default overlap of 50 characters ensures that boundary tokens are duplicated in adjacent chunks, preserving semantic continuity without causing excessive vector index bloat.
+        Idempotency is preserved by calculating SHA-256 hashes on the composite tuple of (doc_id, chunk_index, chunk_text), ensuring that repeated re-ingestion does not pollute the vector store with duplicate entries.
+    </p>
+
+    <h2>Section 3: Context Window Sizing and Anti-Hallucination Guardrails</h2>
+    <p>
+        Injecting irrelevant chunks into the LLM context prompt significantly increases the risk of hallucination and 'lost-in-the-middle' attention degradation.
+        Top-k retrieval should be constrained (typically k=3 to 5) to only the most relevant passages.
+        Furthermore, production RAG services must enforce a strict similarity threshold (e.g. cosine similarity >= 0.25).
+        When the top retrieved chunk fails to meet this threshold, the system must trigger an explicit fallback response: 'I do not have sufficient information in the provided context to answer this question.'
+        This deterministic fallback stops the generator from fabricating plausible-sounding hallucinations when user queries are out-of-domain.
+    </p>
+</body>
+</html>

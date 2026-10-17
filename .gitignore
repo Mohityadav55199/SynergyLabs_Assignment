@@ -1,0 +1,26 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Environment and secrets
+.env
+*.local
+
+# Data and vector stores
+data/lancedb/
+data/qdrant/
+*.lancedb
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
