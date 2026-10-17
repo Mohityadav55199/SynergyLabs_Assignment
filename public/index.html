@@ -30,6 +30,21 @@
       --font-mono: 'JetBrains Mono', monospace;
     }
 
+    body.dark-mode {
+      --bg-app: #090d16;
+      --bg-surface: #111827;
+      --bg-surface-alt: #1f2937;
+      --border-subtle: #374151;
+      --border-focus: #38bdf8;
+      --text-heading: #f9fafb;
+      --text-body: #e5e7eb;
+      --text-muted: #9ca3af;
+      --blue-primary: #3b82f6;
+      --blue-hover: #2563eb;
+      --blue-light: rgba(59, 130, 246, 0.15);
+      --blue-border: rgba(59, 130, 246, 0.35);
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -41,11 +56,12 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      transition: background-color 0.2s, color 0.2s;
     }
 
     /* Top Navigation Bar */
     header {
-      background: #ffffff;
+      background: var(--bg-surface);
       border-bottom: 1px solid var(--border-subtle);
       padding: 0.65rem 1.75rem;
       display: flex;
@@ -861,8 +877,8 @@
 
     <div class="nav-right">
       <div class="theme-toggle-pill">
-        <button class="theme-btn active">☀️</button>
-        <button class="theme-btn">🌙</button>
+        <button class="theme-btn active" id="themeBtnLight" onclick="setTheme('light')" title="Light Mode">☀️</button>
+        <button class="theme-btn" id="themeBtnDark" onclick="setTheme('dark')" title="Dark Mode">🌙</button>
       </div>
       <button class="settings-icon-btn" onclick="toggleSettingsModal()" title="Settings">⚙️</button>
       <div class="user-avatar" title="Mohit Yadav">MO</div>
@@ -1226,6 +1242,90 @@
       `;
     }
 
+    function setTheme(mode) {
+      if (mode === 'dark') {
+        document.body.classList.add('dark-mode');
+        document.getElementById('themeBtnDark').classList.add('active');
+        document.getElementById('themeBtnLight').classList.remove('active');
+      } else {
+        document.body.classList.remove('dark-mode');
+        document.getElementById('themeBtnLight').classList.add('active');
+        document.getElementById('themeBtnDark').classList.remove('active');
+      }
+    }
+
+    function formatMarkdown(text) {
+      if (!text) return '';
+      let html = escapeHtml(text);
+      // Code blocks
+      html = html.replace(/```([\s\S]*?)```/g, '<pre style="background:var(--bg-surface-alt);padding:0.75rem;border-radius:8px;font-family:var(--font-mono);font-size:0.85em;overflow-x:auto;margin:0.5rem 0;border:1px solid var(--border-subtle);">$1</pre>');
+      // Inline code
+      html = html.replace(/`([^`]+)`/g, '<code style="background:var(--bg-surface-alt);padding:0.15rem 0.35rem;border-radius:4px;font-family:var(--font-mono);font-size:0.85em;border:1px solid var(--border-subtle);">$1</code>');
+      // Bold
+      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      // Italic
+      html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      // Chunk citation tags [Chunk-X]
+      html = html.replace(/\[(Chunk-\d+)\]/g, '<span style="background:var(--blue-light);color:var(--blue-primary);padding:0.12rem 0.4rem;border-radius:4px;font-weight:700;font-size:0.82em;font-family:var(--font-mono);border:1px solid var(--blue-border);">$1</span>');
+      // Bullet list lines
+      html = html.replace(/^\s*[-•*]\s+(.+)$/gm, '<li style="margin-left:1.25rem;margin-bottom:0.25rem;">$1</li>');
+      // Line breaks
+      html = html.replace(/\n\n/g, '<br><br>');
+      return html;
+    }
+
+    function updateAssistantMessage(msgId, data) {
+      const row = document.getElementById(msgId);
+      if (!row) return;
+
+      const container = row.querySelector('.assistant-bubble-container');
+      
+      // Citations chips HTML
+      let citationsHtml = '';
+      if (data.citations && data.citations.length > 0) {
+        citationsHtml = '<div class="assistant-citations">';
+        data.citations.forEach(c => {
+          citationsHtml += `<span class="citation-pill-item">📄 ${escapeHtml(c.filename)} (${escapeHtml(c.section)}) • sim: ${c.score}</span>`;
+        });
+        citationsHtml += '</div>';
+      }
+
+      // Raw chunks drawer HTML
+      let drawerHtml = '';
+      if (data.raw_chunks && data.raw_chunks.length > 0) {
+        const drawerId = 'drawer-' + msgId;
+        drawerHtml = `
+          <button class="context-accordion-btn" onclick="toggleDrawer('${drawerId}')">
+            <span>🔍 Inspect ${data.raw_chunks.length} source passages</span> ▾
+          </button>
+          <div class="context-drawer" id="${drawerId}">
+            ${data.raw_chunks.map((c, i) => `
+              <div class="context-chunk-item">
+                <div class="chunk-header-mini">
+                  <span>[Chunk-${i+1}] ${escapeHtml(c.chunk_id)}</span>
+                  <span>sim: ${c.score} &bull; ${escapeHtml(c.format.toUpperCase())}</span>
+                </div>
+                <div>${escapeHtml(c.text)}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      container.innerHTML = `
+        <div class="assistant-text">${formatMarkdown(data.answer)}</div>
+        ${citationsHtml}
+        <div class="telemetry-meta-bar">
+          <span>⚡ ${data.retrieval_latency_ms}ms retrieval</span>
+          <span>⏱️ ${data.total_latency_ms}ms total</span>
+          <span>🎟️ ${data.token_usage?.total_tokens || 0} tokens</span>
+          <span>🧠 ${escapeHtml(data.model_used || 'default')}</span>
+          <span>💾 ${escapeHtml(data.store_type || currentStore)}</span>
+        </div>
+        ${drawerHtml}
+      `;
+    }
+
     function updateAssistantError(msgId, errMsg) {
       const row = document.getElementById(msgId);
       if (!row) return;
@@ -1263,7 +1363,17 @@
       if (!file) return;
 
       const endpoint = document.getElementById('apiEndpoint').value.trim().replace(/\/$/, "");
-      alert(`Uploading ${file.name} to ${endpoint}/ingest/upload...`);
+      
+      // Show system message in chat
+      document.getElementById('welcomeScreen').style.display = 'none';
+      const container = document.getElementById('messagesContainer');
+      container.style.display = 'block';
+
+      const uploadMsgId = 'upload-' + Date.now();
+      appendAssistantLoading(uploadMsgId);
+      const row = document.getElementById(uploadMsgId);
+      row.querySelector('.assistant-text').innerText = `Uploading and indexing ${file.name} into ${currentStore.toUpperCase()}...`;
+      scrollToBottom();
 
       const formData = new FormData();
       formData.append("file", file);
@@ -1276,9 +1386,16 @@
           body: formData
         });
         const result = await res.json();
-        alert(`Ingested ${file.name}: ${result.chunks_count} chunks indexed!`);
+        row.querySelector('.assistant-text').innerHTML = `
+          ✅ <strong>Uploaded &amp; Indexed:</strong> <code>${escapeHtml(file.name)}</code>
+          <br>Generated <strong>${result.chunks_count} chunks</strong> into ${currentStore.toUpperCase()}! You can now ask questions about this document.
+        `;
       } catch (err) {
-        alert("Upload error: " + err.message);
+        row.querySelector('.assistant-text').innerHTML = `
+          ❌ <strong>Upload failed:</strong> ${escapeHtml(err.message)}
+        `;
+      } finally {
+        scrollToBottom();
       }
     }
   </script>
