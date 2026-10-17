@@ -112,13 +112,38 @@ class GroundedRAGService:
         actual_model_used = settings.groq_model
 
         if self.groq_client:
-            models_to_try = [
+            accessible_models = []
+            model_discovery_err = None
+            try:
+                model_objs = self.groq_client.models.list()
+                accessible_models = [m.id for m in model_objs.data]
+            except Exception as e:
+                model_discovery_err = str(e)
+
+            # Determine models to try based on account permissions
+            candidate_preferences = [
                 settings.groq_model,
+                "llama-3.3-70b-versatile",
                 "llama-3.1-8b-instant",
                 "llama-3.2-3b-preview",
-                "llama-3.2-1b-preview"
+                "llama-3.2-1b-preview",
+                "llama-3.2-11b-vision-preview",
+                "llama-3.2-90b-vision-preview",
+                "gemma2-9b-it"
             ]
+
+            if accessible_models:
+                models_to_try = [m for m in candidate_preferences if m in accessible_models]
+                if not models_to_try:
+                    # Pick any accessible chat/text model
+                    models_to_try = [m for m in accessible_models if not any(x in m.lower() for x in ["whisper", "guard", "embed"])]
+            else:
+                models_to_try = candidate_preferences[:4]
+
             errors = []
+            if model_discovery_err:
+                errors.append(f"Model discovery failed: {model_discovery_err}")
+
             for model_name in models_to_try:
                 try:
                     response = self.groq_client.chat.completions.create(
@@ -146,12 +171,13 @@ class GroundedRAGService:
 
             if errors and not answer_text:
                 top_c = filtered_chunks[0]
+                available_str = ", ".join(accessible_models) if accessible_models else "None accessible"
                 answer_text = (
                     f"Based on [{top_c.filename} - {top_c.section}]:\n\n"
                     f"{top_c.text.strip()}\n\n"
                     f"[Chunk-1]\n\n"
-                    f"⚠️ Note: Groq returned ({errors[0].splitlines()[0]}). "
-                    f"To enable full LLM generation, set a valid GROQ_API_KEY from https://console.groq.com/keys in your Render Environment settings."
+                    f"⚠️ Note: Groq error ({errors[0].splitlines()[0]}). Accessible models: [{available_str}]. "
+                    f"Please verify your GROQ_API_KEY in Render."
                 )
         else:
             top_c = filtered_chunks[0]

@@ -132,7 +132,35 @@ def query_rag(req: QueryRequest):
         f"gen={response.generation_latency_ms}ms) | chunks={response.retrieved_chunks_count} | "
         f"tokens={response.token_usage.get('total_tokens', 0)} | citations={len(response.citations)}"
     )
-    return response
+@app.get("/groq-debug", tags=["Diagnostics"])
+def groq_debug():
+    key = settings.groq_api_key
+    if not key or key == "your_groq_api_key_here":
+        return {
+            "configured": False,
+            "key_preview": "None / Placeholder",
+            "error": "GROQ_API_KEY is not set or still set to 'your_groq_api_key_here'."
+        }
+
+    preview = f"{key[:7]}...{key[-4:]}" if len(key) > 11 else "Invalid key length"
+    try:
+        from groq import Groq
+        client = Groq(api_key=key)
+        model_list = [m.id for m in client.models.list().data]
+        return {
+            "configured": True,
+            "key_preview": preview,
+            "connected": True,
+            "models_count": len(model_list),
+            "accessible_models": model_list
+        }
+    except Exception as e:
+        return {
+            "configured": True,
+            "key_preview": preview,
+            "connected": False,
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     import uvicorn
