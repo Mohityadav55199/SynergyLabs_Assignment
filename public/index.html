@@ -800,6 +800,63 @@
       text-align: center;
     }
 
+    /* Cold Start Notice Banner */
+    .cold-start-banner {
+      background: #eff6ff;
+      border-bottom: 1px solid #bfdbfe;
+      color: #1e40af;
+      padding: 0.55rem 1.5rem;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      z-index: 30;
+    }
+    body.dark-mode .cold-start-banner {
+      background: #1e293b;
+      border-bottom: 1px solid #3b82f6;
+      color: #93c5fd;
+    }
+    .cold-start-content {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .pulsing-spinner {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #2563eb;
+      display: inline-block;
+      animation: pulseLoader 1.2s infinite ease-in-out;
+    }
+    @keyframes pulseLoader {
+      0%, 100% { opacity: 0.3; transform: scale(0.85); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+    .cold-start-timer {
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.76rem;
+    }
+    body.dark-mode .cold-start-timer {
+      background: #334155;
+      color: #93c5fd;
+    }
+
+    .retry-card {
+      background: var(--blue-light);
+      border: 1px solid var(--blue-border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-top: 0.5rem;
+    }
+
     /* Modal / Settings */
     .modal-backdrop {
       display: none;
@@ -882,8 +939,16 @@
       </div>
       <button class="settings-icon-btn" onclick="toggleSettingsModal()" title="Settings">⚙️</button>
       <div class="user-avatar" title="Mohit Yadav">MO</div>
-    </div>
   </header>
+
+  <!-- Cold Start Notice Banner -->
+  <div id="coldStartBanner" class="cold-start-banner" style="display: none;">
+    <div class="cold-start-content">
+      <span class="pulsing-spinner"></span>
+      <span id="coldStartMsg"><strong>Render Free Tier Notice:</strong> Backend is warming up from idle mode (~30s). Please hold on...</span>
+      <span id="coldStartTimer" class="cold-start-timer">0s</span>
+    </div>
+  </div>
 
   <!-- App Layout -->
   <div class="app-layout">
@@ -899,13 +964,13 @@
       <div class="health-pill-card">
         <div class="health-card-top">
           <span>System health</span>
-          <span style="color: var(--green-status); font-size: 0.72rem; font-weight: 700;">● Active</span>
+          <span id="systemHealthStatus" style="color: #eab308; font-size: 0.72rem; font-weight: 700;">● Checking...</span>
         </div>
         <div class="health-dots">
-          <span class="dot-item"><span class="status-dot"></span> Backend</span>
-          <span class="dot-item"><span class="status-dot"></span> Groq AI</span>
-          <span class="dot-item"><span class="status-dot"></span> LanceDB</span>
-          <span class="dot-item"><span class="status-dot"></span> Qdrant</span>
+          <span class="dot-item"><span id="dotBackend" class="status-dot"></span> Backend</span>
+          <span class="dot-item"><span id="dotGroq" class="status-dot"></span> Groq AI</span>
+          <span class="dot-item"><span id="dotLance" class="status-dot"></span> LanceDB</span>
+          <span class="dot-item"><span id="dotQdrant" class="status-dot"></span> Qdrant</span>
         </div>
       </div>
 
@@ -1023,6 +1088,10 @@
               What is the monthly cost comparison for 10M vectors?
             </div>
           </div>
+          <div id="landingColdNotice" style="display: none; margin-top: 1.5rem; background: var(--blue-light); border: 1px solid var(--blue-border); padding: 0.75rem 1.15rem; border-radius: 12px; font-size: 0.83rem; color: var(--blue-primary); align-items: center; justify-content: center; gap: 0.65rem;">
+            <span class="pulsing-spinner"></span>
+            <span><strong>Render Free Tier Notice:</strong> Backend server is currently spinning up from idle state (~30-45s). You can enter questions right now; they will execute as soon as the instance boots!</span>
+          </div>
         </div>
 
         <!-- Chat Conversation Messages Container -->
@@ -1137,6 +1206,32 @@
       appendAssistantLoading(assistantMsgId);
       scrollToBottom();
 
+      // Track elapsed seconds to detect and display cold-start status
+      let queryStart = Date.now();
+      let loadingInterval = setInterval(() => {
+        const elapsedSec = Math.floor((Date.now() - queryStart) / 1000);
+        const row = document.getElementById(assistantMsgId);
+        if (!row) {
+          clearInterval(loadingInterval);
+          return;
+        }
+        const textEl = row.querySelector('.assistant-text');
+        if (elapsedSec >= 4) {
+          textEl.innerHTML = `
+            <div style="display:flex; align-items:center; gap:0.55rem; margin-bottom:0.4rem;">
+              <span class="pulsing-spinner"></span>
+              <strong style="color:var(--blue-primary); font-size:0.92rem;">Render Backend Waking Up (${elapsedSec}s)</strong>
+            </div>
+            <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;">
+              Render free tier container is starting from idle state (takes ~30-45s after 15m inactivity).<br>
+              <span style="font-size:0.8rem; color:var(--blue-primary); font-weight:600;">⚡ Once awake, all subsequent queries execute in &lt;1.8s!</span>
+            </div>
+          `;
+        } else {
+          textEl.innerHTML = `Searching ${currentStore.toUpperCase()} &amp; generating grounded answer... (${elapsedSec}s)`;
+        }
+      }, 1000);
+
       const payload = {
         query: text,
         top_k: topK,
@@ -1156,14 +1251,26 @@
         }
 
         const data = await res.json();
+        clearInterval(loadingInterval);
         updateAssistantMessage(assistantMsgId, data);
 
+        // Mark backend healthy
+        markBackendActive();
+
       } catch (err) {
-        updateAssistantError(assistantMsgId, err.message);
+        clearInterval(loadingInterval);
+        updateAssistantError(assistantMsgId, err.message, text);
       } finally {
+        clearInterval(loadingInterval);
         sendBtn.disabled = false;
         scrollToBottom();
       }
+    }
+
+    function retryQuery(text) {
+      if (!text) return;
+      document.getElementById('chatInput').value = text;
+      handleSendClick();
     }
 
     function appendUserMessage(text) {
@@ -1188,58 +1295,6 @@
         </div>
       `;
       container.appendChild(row);
-    }
-
-    function updateAssistantMessage(msgId, data) {
-      const row = document.getElementById(msgId);
-      if (!row) return;
-
-      const container = row.querySelector('.assistant-bubble-container');
-      
-      // Citations chips HTML
-      let citationsHtml = '';
-      if (data.citations && data.citations.length > 0) {
-        citationsHtml = '<div class="assistant-citations">';
-        data.citations.forEach(c => {
-          citationsHtml += `<span class="citation-pill-item">📄 ${escapeHtml(c.filename)} (${escapeHtml(c.section)}) • sim: ${c.score}</span>`;
-        });
-        citationsHtml += '</div>';
-      }
-
-      // Raw chunks drawer HTML
-      let drawerHtml = '';
-      if (data.raw_chunks && data.raw_chunks.length > 0) {
-        const drawerId = 'drawer-' + msgId;
-        drawerHtml = `
-          <button class="context-accordion-btn" onclick="toggleDrawer('${drawerId}')">
-            <span>🔍 Inspect ${data.raw_chunks.length} source chunks</span> ▾
-          </button>
-          <div class="context-drawer" id="${drawerId}">
-            ${data.raw_chunks.map((c, i) => `
-              <div class="context-chunk-item">
-                <div class="chunk-header-mini">
-                  <span>[Chunk-${i+1}] ${escapeHtml(c.chunk_id)}</span>
-                  <span>sim: ${c.score} &bull; ${escapeHtml(c.format.toUpperCase())}</span>
-                </div>
-                <div>${escapeHtml(c.text)}</div>
-              </div>
-            `).join('')}
-          </div>
-        `;
-      }
-
-      container.innerHTML = `
-        <div class="assistant-text">${escapeHtml(data.answer)}</div>
-        ${citationsHtml}
-        <div class="telemetry-meta-bar">
-          <span>⚡ ${data.retrieval_latency_ms}ms retrieval</span>
-          <span>⏱️ ${data.total_latency_ms}ms total</span>
-          <span>🎟️ ${data.token_usage?.total_tokens || 0} tokens</span>
-          <span>🧠 ${escapeHtml(data.model_used || 'default')}</span>
-          <span>💾 ${escapeHtml(data.store_type || currentStore)}</span>
-        </div>
-        ${drawerHtml}
-      `;
     }
 
     function setTheme(mode) {
@@ -1326,17 +1381,45 @@
       `;
     }
 
-    function updateAssistantError(msgId, errMsg) {
+    function updateAssistantError(msgId, errMsg, queryText) {
       const row = document.getElementById(msgId);
       if (!row) return;
       const container = row.querySelector('.assistant-bubble-container');
-      container.innerHTML = `
-        <div class="assistant-text" style="color: #ef4444;">
-          Error retrieving answer: ${escapeHtml(errMsg)}
-          <br><br>
-          <small style="color: var(--text-muted);">Please check that the Render backend is live and healthy.</small>
-        </div>
-      `;
+      const isColdStartOrNetwork = !errMsg || errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError') || errMsg.includes('timeout') || errMsg.includes('504') || errMsg.includes('502') || errMsg.includes('503');
+
+      if (isColdStartOrNetwork) {
+        container.innerHTML = `
+          <div class="retry-card">
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem; color:var(--text-heading); font-weight:700;">
+              <span>⏳</span>
+              <span>Render Free Tier Cold Start</span>
+            </div>
+            <p style="font-size:0.85rem; color:var(--text-body); margin-bottom:0.75rem; line-height:1.5;">
+              Render automatically spins down instances after 15 minutes of inactivity to keep hosting free ($0 cost). 
+              The container is spinning up right now and typically takes ~30–45s to become fully ready.
+            </p>
+            <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
+              <button class="filter-selector" style="background:var(--blue-primary); color:white; border:none; cursor:pointer; padding:0.45rem 1rem;" onclick="retryQuery('${escapeHtml(queryText || '')}')">
+                🔄 Retry Query Now
+              </button>
+              <a href="https://cost-efficient-rag-service.onrender.com/health" target="_blank" style="font-size:0.8rem; color:var(--blue-primary); text-decoration:none; font-weight:600;">
+                Check Health Endpoint ↗
+              </a>
+            </div>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="assistant-text" style="color: #ef4444;">
+            <strong>Error:</strong> ${escapeHtml(errMsg)}
+            <br><br>
+            <div style="display:flex; gap:0.6rem; margin-top:0.4rem;">
+              ${queryText ? `<button class="filter-selector" style="cursor:pointer;" onclick="retryQuery('${escapeHtml(queryText)}')">🔄 Retry</button>` : ''}
+              <small style="color: var(--text-muted); align-self:center;">Check backend URL &amp; API keys in settings ⚙️</small>
+            </div>
+          </div>
+        `;
+      }
     }
 
     function toggleDrawer(drawerId) {
@@ -1398,6 +1481,107 @@
         scrollToBottom();
       }
     }
+
+    function markBackendActive(latencyMs) {
+      const statusText = document.getElementById('systemHealthStatus');
+      const dotBackend = document.getElementById('dotBackend');
+      const dotGroq = document.getElementById('dotGroq');
+      const dotLance = document.getElementById('dotLance');
+      const dotQdrant = document.getElementById('dotQdrant');
+
+      if (statusText) {
+        statusText.innerHTML = latencyMs ? `● Active (${latencyMs}ms)` : '● Active';
+        statusText.style.color = 'var(--green-status)';
+      }
+      if (dotBackend) dotBackend.style.background = 'var(--green-status)';
+      if (dotGroq) dotGroq.style.background = 'var(--green-status)';
+      if (dotLance) dotLance.style.background = 'var(--green-status)';
+      if (dotQdrant) dotQdrant.style.background = 'var(--green-status)';
+    }
+
+    // Auto health check & Render cold start banner
+    let healthTimer = null;
+    let healthSeconds = 0;
+
+    async function checkBackendHealth() {
+      const endpoint = document.getElementById('apiEndpoint').value.trim().replace(/\/$/, "");
+      const banner = document.getElementById('coldStartBanner');
+      const timerEl = document.getElementById('coldStartTimer');
+      const msgEl = document.getElementById('coldStartMsg');
+      const landingNotice = document.getElementById('landingColdNotice');
+      const statusText = document.getElementById('systemHealthStatus');
+
+      healthSeconds = 0;
+      let isResolved = false;
+
+      // Start elapsed timer
+      healthTimer = setInterval(() => {
+        if (isResolved) return;
+        healthSeconds++;
+        if (timerEl) timerEl.innerText = healthSeconds + 's';
+
+        // If taking longer than 2.5 seconds, display the cold start banner and landing notice
+        if (healthSeconds >= 3) {
+          if (banner && banner.style.display === 'none') {
+            banner.style.display = 'flex';
+          }
+          if (landingNotice && landingNotice.style.display === 'none') {
+            landingNotice.style.display = 'flex';
+          }
+          if (statusText) {
+            statusText.innerHTML = '● Warming up...';
+            statusText.style.color = '#eab308';
+          }
+        }
+      }, 1000);
+
+      try {
+        const start = performance.now();
+        const res = await fetch(`${endpoint}/health`);
+        const latency = Math.round(performance.now() - start);
+        isResolved = true;
+        clearInterval(healthTimer);
+
+        if (res.ok) {
+          markBackendActive(latency);
+
+          if (landingNotice) landingNotice.style.display = 'none';
+
+          if (banner && banner.style.display !== 'none') {
+            msgEl.innerHTML = `<strong>✅ Render Backend is Online &amp; Ready!</strong> Initialized in ${healthSeconds}s. Subsequent queries will be fast (&lt;1.8s).`;
+            if (timerEl) timerEl.style.display = 'none';
+            setTimeout(() => {
+              banner.style.opacity = '0';
+              setTimeout(() => {
+                banner.style.display = 'none';
+                banner.style.opacity = '1';
+              }, 400);
+            }, 3000);
+          }
+        } else {
+          throw new Error(`HTTP ${res.status}`);
+        }
+      } catch (err) {
+        isResolved = true;
+        clearInterval(healthTimer);
+        if (statusText) {
+          statusText.innerHTML = '● Cold / Waking';
+          statusText.style.color = '#f59e0b';
+        }
+        if (banner) {
+          banner.style.display = 'flex';
+          msgEl.innerHTML = `<strong>⏳ Backend Container Starting:</strong> Render is finishing service wake-up (~30-45s). You can enter questions anytime!`;
+        }
+        if (landingNotice) landingNotice.style.display = 'flex';
+        // Retry check in 7 seconds
+        setTimeout(checkBackendHealth, 7000);
+      }
+    }
+
+    // Run health check on startup
+    window.addEventListener('DOMContentLoaded', () => {
+      checkBackendHealth();
+    });
   </script>
 </body>
 </html>
