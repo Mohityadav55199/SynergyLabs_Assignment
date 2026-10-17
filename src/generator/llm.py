@@ -152,7 +152,7 @@ class GroundedRAGService:
                             {"role": "system", "content": SYSTEM_PROMPT},
                             {"role": "user", "content": user_prompt}
                         ],
-                        temperature=0.0,
+                        temperature=0.2,
                         max_tokens=800
                     )
                     answer_text = response.choices[0].message.content or ""
@@ -166,8 +166,27 @@ class GroundedRAGService:
                     errors = []
                     break
                 except Exception as e:
-                    errors.append(f"{model_name}: {str(e)}")
-                    continue
+                    try:
+                        response = self.groq_client.chat.completions.create(
+                            model=model_name,
+                            messages=[
+                                {"role": "user", "content": f"{SYSTEM_PROMPT}\n\n{user_prompt}"}
+                            ],
+                            max_tokens=800
+                        )
+                        answer_text = response.choices[0].message.content or ""
+                        if response.usage:
+                            token_usage = {
+                                "prompt_tokens": response.usage.prompt_tokens,
+                                "completion_tokens": response.usage.completion_tokens,
+                                "total_tokens": response.usage.total_tokens
+                            }
+                        actual_model_used = model_name
+                        errors = []
+                        break
+                    except Exception as e2:
+                        errors.append(f"{model_name}: {str(e)}")
+                        continue
 
             if errors and not answer_text:
                 top_c = filtered_chunks[0]

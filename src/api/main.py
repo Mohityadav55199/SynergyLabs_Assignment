@@ -132,6 +132,8 @@ def query_rag(req: QueryRequest):
         f"gen={response.generation_latency_ms}ms) | chunks={response.retrieved_chunks_count} | "
         f"tokens={response.token_usage.get('total_tokens', 0)} | citations={len(response.citations)}"
     )
+    return response
+
 @app.get("/groq-debug", tags=["Diagnostics"])
 def groq_debug():
     key = settings.groq_api_key
