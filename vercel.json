@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/api/main.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/api/main.py"
+    }
+  ],
+  "env": {
+    "LANCEDB_DIR": "/tmp/lancedb",
+    "QDRANT_DIR": "/tmp/qdrant"
+  }
+}
