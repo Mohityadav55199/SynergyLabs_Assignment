@@ -188,7 +188,8 @@
       display: grid;
       grid-template-columns: 380px 1fr;
       flex: 1;
-      height: calc(100vh - 53px);
+      min-height: 0;
+      height: 100%;
       overflow: hidden;
       background: var(--bg-app);
     }
@@ -205,6 +206,8 @@
       flex-direction: column;
       gap: 1.15rem;
       overflow-y: auto;
+      height: 100%;
+      min-height: 0;
     }
     .sidebar-header h2 {
       font-size: 1.15rem;
@@ -434,8 +437,10 @@
       display: flex;
       flex-direction: column;
       height: 100%;
+      min-height: 0;
       background: #ffffff;
       position: relative;
+      overflow: hidden;
     }
 
     /* Chat Top Toolbar */
@@ -446,6 +451,8 @@
       align-items: center;
       justify-content: space-between;
       background: #ffffff;
+      flex-shrink: 0;
+      z-index: 10;
     }
     .filter-selector {
       background: var(--bg-surface-alt);
@@ -520,10 +527,13 @@
     /* Chat Messages Stream Scroll Area */
     .chat-scroll-area {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
-      padding: 1.5rem 2rem 7.5rem;
+      overflow-x: hidden;
+      padding: 1.5rem 2rem 8.5rem;
       display: flex;
       flex-direction: column;
+      scroll-behavior: smooth;
     }
 
     /* Welcome / Empty State (ChatGPT Landing) */
@@ -715,6 +725,24 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .chat-capsule, .input-disclaimer {
+      pointer-events: auto;
+    }
+    body.dark-mode .sidebar,
+    body.dark-mode .chat-container,
+    body.dark-mode .chat-toolbar {
+      background: var(--bg-surface);
+    }
+    body.dark-mode .chat-input-wrapper {
+      background: linear-gradient(180deg, rgba(17,24,39,0) 0%, rgba(17,24,39,0.95) 30%, #111827 100%);
+    }
+    body.dark-mode .chat-capsule {
+      background: var(--bg-surface-alt);
+      border-color: var(--border-subtle);
+      box-shadow: 0 12px 35px -4px rgba(0, 0, 0, 0.4);
     }
 
     .chat-capsule {
