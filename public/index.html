@@ -170,90 +170,105 @@
     /* App Layout */
     .app-layout {
       display: grid;
-      grid-template-columns: 320px 1fr;
+      grid-template-columns: 380px 1fr;
       flex: 1;
       height: calc(100vh - 53px);
       overflow: hidden;
       background: var(--bg-app);
+    }
+    @media (max-width: 960px) {
+      .app-layout { grid-template-columns: 320px 1fr; }
     }
 
     /* Left Sidebar */
     .sidebar {
       background: #ffffff;
       border-right: 1px solid var(--border-subtle);
-      padding: 1.25rem;
+      padding: 1.35rem 1.25rem;
       display: flex;
       flex-direction: column;
       gap: 1.15rem;
       overflow-y: auto;
     }
     .sidebar-header h2 {
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       font-weight: 800;
       color: var(--text-heading);
       letter-spacing: -0.01em;
     }
     .sidebar-header p {
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       color: var(--text-muted);
-      margin-top: 0.2rem;
-      line-height: 1.4;
+      margin-top: 0.25rem;
+      line-height: 1.45;
     }
 
-    /* System Health Pill */
+    /* System Health Card (Spacious, No Overlap) */
     .health-pill-card {
       background: var(--bg-surface-alt);
       border: 1px solid var(--border-subtle);
-      border-radius: 9999px;
-      padding: 0.35rem 0.85rem;
+      border-radius: 12px;
+      padding: 0.65rem 0.9rem;
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .health-card-top {
+      display: flex;
       justify-content: space-between;
-      font-size: 0.72rem;
-      font-weight: 600;
+      align-items: center;
+      font-size: 0.74rem;
+      font-weight: 800;
       color: var(--text-heading);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     .health-dots {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 0.5rem;
     }
     .dot-item {
       display: inline-flex;
       align-items: center;
-      gap: 0.25rem;
-      color: var(--text-muted);
+      gap: 0.3rem;
+      font-size: 0.73rem;
+      font-weight: 600;
+      color: var(--text-body);
+      white-space: nowrap;
     }
     .dot-item .status-dot {
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: var(--green-status);
+      box-shadow: 0 0 4px var(--green-status);
     }
 
     /* Document Stats Pill */
     .stats-summary-card {
       background: var(--bg-surface-alt);
       border: 1px solid var(--border-subtle);
-      border-radius: 10px;
-      padding: 0.65rem 0.85rem;
-      font-size: 0.76rem;
+      border-radius: 12px;
+      padding: 0.7rem 0.95rem;
+      font-size: 0.78rem;
       font-weight: 600;
       color: var(--text-body);
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.3rem;
     }
     .stats-row {
       display: flex;
       align-items: center;
-      gap: 0.85rem;
+      gap: 1rem;
     }
 
     /* Upload Card */
     .upload-card {
       background: #ffffff;
-      border: 1px dashed #cbd5e1;
+      border: 1.5px dashed #cbd5e1;
       border-radius: 12px;
       padding: 0.85rem 1rem;
       display: flex;
@@ -270,37 +285,42 @@
     .upload-info {
       display: flex;
       align-items: center;
-      gap: 0.65rem;
+      gap: 0.75rem;
+      overflow: hidden;
     }
     .upload-icon {
       background: var(--blue-light);
       color: var(--blue-primary);
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1rem;
+      font-size: 1.15rem;
+      flex-shrink: 0;
     }
     .upload-title {
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       font-weight: 700;
       color: var(--text-heading);
     }
     .upload-sub {
-      font-size: 0.7rem;
+      font-size: 0.71rem;
       color: var(--text-muted);
+      white-space: nowrap;
     }
     .btn-browse {
       background: white;
       border: 1px solid var(--border-subtle);
       color: var(--text-heading);
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 0.3rem 0.65rem;
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 0.35rem 0.75rem;
       border-radius: 6px;
       cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s;
     }
     .btn-browse:hover {
       background: var(--bg-surface-alt);
@@ -310,7 +330,7 @@
     .recent-docs-wrap {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 0.55rem;
     }
     .recent-docs-header {
       display: flex;
@@ -318,70 +338,79 @@
       align-items: center;
     }
     .recent-docs-title {
-      font-size: 0.82rem;
+      font-size: 0.84rem;
       font-weight: 800;
       color: var(--text-heading);
     }
     .view-all-link {
-      font-size: 0.72rem;
+      font-size: 0.73rem;
       color: var(--blue-primary);
       font-weight: 600;
       text-decoration: none;
       cursor: pointer;
     }
     .recent-docs-subtitle {
-      font-size: 0.7rem;
+      font-size: 0.71rem;
       color: var(--text-muted);
       margin-top: -0.25rem;
-      margin-bottom: 0.25rem;
+      margin-bottom: 0.3rem;
     }
     .doc-item {
       background: var(--bg-surface-alt);
       border: 1px solid var(--border-subtle);
       border-radius: 10px;
-      padding: 0.65rem 0.75rem;
+      padding: 0.75rem 0.9rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      transition: background 0.15s;
+      gap: 0.5rem;
+      transition: background 0.15s, border-color 0.15s;
+      cursor: pointer;
     }
     .doc-item:hover {
       background: #e2e8f0;
+      border-color: #cbd5e1;
     }
     .doc-main {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.65rem;
       overflow: hidden;
+      flex: 1;
     }
     .doc-file-icon {
-      font-size: 1.1rem;
+      font-size: 1.15rem;
+      flex-shrink: 0;
     }
     .doc-details {
       overflow: hidden;
+      flex: 1;
     }
     .doc-name {
-      font-size: 0.78rem;
+      font-size: 0.8rem;
       font-weight: 700;
       color: var(--text-heading);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 140px;
+      max-width: 210px;
     }
     .doc-sub {
-      font-size: 0.68rem;
+      font-size: 0.7rem;
       color: var(--text-muted);
       font-family: var(--font-mono);
+      white-space: nowrap;
+      margin-top: 0.1rem;
     }
     .doc-status-badge {
       background: var(--green-bg);
       color: #047857;
-      font-size: 0.68rem;
+      font-size: 0.69rem;
       font-weight: 700;
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
+      padding: 0.2rem 0.5rem;
+      border-radius: 5px;
       border: 1px solid #a7f3d0;
+      flex-shrink: 0;
     }
 
     /* Right Main Chat Area */
@@ -852,7 +881,10 @@
 
       <!-- System Health Badge -->
       <div class="health-pill-card">
-        <span style="font-weight: 700; color: var(--text-heading);">System health</span>
+        <div class="health-card-top">
+          <span>System health</span>
+          <span style="color: var(--green-status); font-size: 0.72rem; font-weight: 700;">● Active</span>
+        </div>
         <div class="health-dots">
           <span class="dot-item"><span class="status-dot"></span> Backend</span>
           <span class="dot-item"><span class="status-dot"></span> Groq AI</span>
