@@ -1,4 +1,6 @@
 {
   "version": 2,
+  "framework": null,
+  "buildCommand": "echo 'Deploying static frontend'",
   "outputDirectory": "public"
 }
