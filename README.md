@@ -19,8 +19,12 @@ A production-grade, cost-efficient Retrieval-Augmented Generation (RAG) QA servi
 | **Swagger API Docs** | [https://cost-efficient-rag-service.onrender.com/docs](https://cost-efficient-rag-service.onrender.com/docs) | Interactive OpenAPI documentation and test console |
 | **Health & Diagnostics** | [https://cost-efficient-rag-service.onrender.com/groq-debug](https://cost-efficient-rag-service.onrender.com/groq-debug) | Real-time key status, active LLM model, and vector store stats |
 
-> **Note on Render Free-Tier Cold Starts:**
-> Because the backend is deployed on Render's free tier, the container spins down after 15 minutes of inactivity ($0 idle cost, matching our thesis!). If idle, the first request takes ~30–45s to wake up. The frontend features an automated cold-start detection banner, elapsed seconds counter, and smart one-click retry card. Once awake, all subsequent queries respond in <1.8s.
+> **Note on Render Free-Tier Cold Starts & Keep-Warm Strategy:**
+> Because the backend is deployed on Render's free tier, the container spins down after 15 minutes of inactivity ($0 idle cost, matching our thesis!). If idle, the first request takes ~30–45s to wake up. 
+> To keep the backend warm and responsive 24/7 without cost:
+> 1. **GitHub Actions Cron Workflow** ([`.github/workflows/keep-warm.yml`](.github/workflows/keep-warm.yml)): Automatically pings `/health` every 10 minutes.
+> 2. **External Cron Service Support**: Compatible with cron-job.org / UptimeRobot scheduled every 10–12 minutes.
+> 3. **Smart Frontend Cold-Start Detection**: Sticky live banner with elapsed seconds counter, background health polling, and 1-click retry cards for chat and uploads. Once awake, all subsequent queries respond in <1.8s.
 
 ---
 

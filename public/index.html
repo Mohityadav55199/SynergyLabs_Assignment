@@ -802,16 +802,19 @@
 
     /* Cold Start Notice Banner */
     .cold-start-banner {
+      position: sticky;
+      top: 0;
       background: #eff6ff;
       border-bottom: 1px solid #bfdbfe;
       color: #1e40af;
-      padding: 0.55rem 1.5rem;
-      font-size: 0.82rem;
+      padding: 0.65rem 1.5rem;
+      font-size: 0.84rem;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.3s ease;
-      z-index: 30;
+      z-index: 50;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
     }
     body.dark-mode .cold-start-banner {
       background: #1e293b;
@@ -1455,8 +1458,30 @@
       const uploadMsgId = 'upload-' + Date.now();
       appendAssistantLoading(uploadMsgId);
       const row = document.getElementById(uploadMsgId);
-      row.querySelector('.assistant-text').innerText = `Uploading and indexing ${file.name} into ${currentStore.toUpperCase()}...`;
+      const textEl = row.querySelector('.assistant-text');
+      textEl.innerText = `Uploading and indexing ${file.name} into ${currentStore.toUpperCase()}...`;
       scrollToBottom();
+
+      const uploadStart = Date.now();
+      const uploadTimer = setInterval(() => {
+        const elapsedSec = Math.floor((Date.now() - uploadStart) / 1000);
+        if (!document.getElementById(uploadMsgId)) {
+          clearInterval(uploadTimer);
+          return;
+        }
+        if (elapsedSec >= 4) {
+          textEl.innerHTML = `
+            <div style="display:flex; align-items:center; gap:0.55rem; margin-bottom:0.4rem;">
+              <span class="pulsing-spinner"></span>
+              <strong style="color:var(--blue-primary); font-size:0.92rem;">Render Backend Waking Up (${elapsedSec}s)</strong>
+            </div>
+            <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;">
+              File upload is waiting for the free-tier container to finish boot (~30-45s)...<br>
+              <span style="font-size:0.8rem; color:var(--blue-primary); font-weight:600;">⚡ File will be chunked and indexed into ${currentStore.toUpperCase()} immediately upon wake-up!</span>
+            </div>
+          `;
+        }
+      }, 1000);
 
       const formData = new FormData();
       formData.append("file", file);
@@ -1468,15 +1493,43 @@
           method: 'POST',
           body: formData
         });
+        clearInterval(uploadTimer);
+
+        if (!res.ok) {
+          throw new Error(`Server returned HTTP ${res.status}`);
+        }
+
         const result = await res.json();
-        row.querySelector('.assistant-text').innerHTML = `
+        textEl.innerHTML = `
           ✅ <strong>Uploaded &amp; Indexed:</strong> <code>${escapeHtml(file.name)}</code>
           <br>Generated <strong>${result.chunks_count} chunks</strong> into ${currentStore.toUpperCase()}! You can now ask questions about this document.
         `;
+        markBackendActive();
       } catch (err) {
-        row.querySelector('.assistant-text').innerHTML = `
-          ❌ <strong>Upload failed:</strong> ${escapeHtml(err.message)}
-        `;
+        clearInterval(uploadTimer);
+        const isCold = !err.message || err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('502') || err.message.includes('503') || err.message.includes('504');
+        if (isCold) {
+          textEl.innerHTML = `
+            <div class="retry-card" style="margin-top:0;">
+              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem; color:var(--text-heading); font-weight:700;">
+                <span>⏳</span>
+                <span>Render Free Tier Cold Start</span>
+              </div>
+              <p style="font-size:0.85rem; color:var(--text-body); margin-bottom:0.75rem; line-height:1.5;">
+                The server took longer than expected to wake up while receiving <code>${escapeHtml(file.name)}</code>. The container is spinning up right now.
+              </p>
+              <button class="filter-selector" style="background:var(--blue-primary); color:white; border:none; cursor:pointer; padding:0.45rem 1rem;" onclick="document.getElementById('hiddenFileInput').click()">
+                🔄 Re-select File to Index
+              </button>
+            </div>
+          `;
+        } else {
+          textEl.innerHTML = `
+            <div style="color: #ef4444;">
+              <strong>Upload failed:</strong> ${escapeHtml(err.message)}
+            </div>
+          `;
+        }
       } finally {
         scrollToBottom();
       }
@@ -1499,11 +1552,14 @@
       if (dotQdrant) dotQdrant.style.background = 'var(--green-status)';
     }
 
-    // Auto health check & Render cold start banner
+    // Auto health check & continuous Render cold start detection
+    let healthStartTime = null;
     let healthTimer = null;
-    let healthSeconds = 0;
+    let isBackendReady = false;
 
     async function checkBackendHealth() {
+      if (isBackendReady) return;
+
       const endpoint = document.getElementById('apiEndpoint').value.trim().replace(/\/$/, "");
       const banner = document.getElementById('coldStartBanner');
       const timerEl = document.getElementById('coldStartTimer');
@@ -1511,44 +1567,50 @@
       const landingNotice = document.getElementById('landingColdNotice');
       const statusText = document.getElementById('systemHealthStatus');
 
-      healthSeconds = 0;
-      let isResolved = false;
+      if (!healthStartTime) {
+        healthStartTime = Date.now();
+      }
 
-      // Start elapsed timer
-      healthTimer = setInterval(() => {
-        if (isResolved) return;
-        healthSeconds++;
-        if (timerEl) timerEl.innerText = healthSeconds + 's';
+      if (!healthTimer) {
+        healthTimer = setInterval(() => {
+          if (isBackendReady) {
+            clearInterval(healthTimer);
+            return;
+          }
+          const elapsedSec = Math.floor((Date.now() - healthStartTime) / 1000);
+          if (timerEl) timerEl.innerText = elapsedSec + 's';
 
-        // If taking longer than 2.5 seconds, display the cold start banner and landing notice
-        if (healthSeconds >= 3) {
-          if (banner && banner.style.display === 'none') {
-            banner.style.display = 'flex';
+          // Show banner after 2 seconds if still unresolved
+          if (elapsedSec >= 2) {
+            if (banner && banner.style.display === 'none') {
+              banner.style.display = 'flex';
+            }
+            if (landingNotice && landingNotice.style.display === 'none') {
+              landingNotice.style.display = 'flex';
+            }
+            if (statusText && !isBackendReady) {
+              statusText.innerHTML = `● Warming (${elapsedSec}s)`;
+              statusText.style.color = '#eab308';
+            }
           }
-          if (landingNotice && landingNotice.style.display === 'none') {
-            landingNotice.style.display = 'flex';
-          }
-          if (statusText) {
-            statusText.innerHTML = '● Warming up...';
-            statusText.style.color = '#eab308';
-          }
-        }
-      }, 1000);
+        }, 1000);
+      }
 
       try {
         const start = performance.now();
         const res = await fetch(`${endpoint}/health`);
         const latency = Math.round(performance.now() - start);
-        isResolved = true;
-        clearInterval(healthTimer);
 
         if (res.ok) {
+          isBackendReady = true;
+          clearInterval(healthTimer);
           markBackendActive(latency);
 
           if (landingNotice) landingNotice.style.display = 'none';
 
+          const totalElapsed = Math.floor((Date.now() - healthStartTime) / 1000);
           if (banner && banner.style.display !== 'none') {
-            msgEl.innerHTML = `<strong>✅ Render Backend is Online &amp; Ready!</strong> Initialized in ${healthSeconds}s. Subsequent queries will be fast (&lt;1.8s).`;
+            msgEl.innerHTML = `<strong>✅ Render Backend is Online &amp; Ready!</strong> Responded in ${totalElapsed}s. Subsequent queries execute in &lt;1.8s.`;
             if (timerEl) timerEl.style.display = 'none';
             setTimeout(() => {
               banner.style.opacity = '0';
@@ -1562,10 +1624,9 @@
           throw new Error(`HTTP ${res.status}`);
         }
       } catch (err) {
-        isResolved = true;
-        clearInterval(healthTimer);
-        if (statusText) {
-          statusText.innerHTML = '● Cold / Waking';
+        if (statusText && !isBackendReady) {
+          const elapsedSec = Math.floor((Date.now() - healthStartTime) / 1000);
+          statusText.innerHTML = `● Cold / Waking (${elapsedSec}s)`;
           statusText.style.color = '#f59e0b';
         }
         if (banner) {
@@ -1573,8 +1634,8 @@
           msgEl.innerHTML = `<strong>⏳ Backend Container Starting:</strong> Render is finishing service wake-up (~30-45s). You can enter questions anytime!`;
         }
         if (landingNotice) landingNotice.style.display = 'flex';
-        // Retry check in 7 seconds
-        setTimeout(checkBackendHealth, 7000);
+        // Retry check in 5 seconds
+        setTimeout(checkBackendHealth, 5000);
       }
     }
 
