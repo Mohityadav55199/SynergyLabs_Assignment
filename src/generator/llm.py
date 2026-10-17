@@ -109,27 +109,44 @@ class GroundedRAGService:
         gen_start = time.perf_counter()
         token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         answer_text = ""
+        actual_model_used = settings.groq_model
 
         if self.groq_client:
-            try:
-                response = self.groq_client.chat.completions.create(
-                    model=settings.groq_model,
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    temperature=0.0,  # Zero temperature for deterministic, factual outputs
-                    max_tokens=800
-                )
-                answer_text = response.choices[0].message.content or ""
-                if response.usage:
-                    token_usage = {
-                        "prompt_tokens": response.usage.prompt_tokens,
-                        "completion_tokens": response.usage.completion_tokens,
-                        "total_tokens": response.usage.total_tokens
-                    }
-            except Exception as e:
-                answer_text = f"Error communicating with Groq API: {str(e)}"
+            models_to_try = [
+                settings.groq_model,
+                "llama-3.1-8b-instant",
+                "llama3-70b-8192",
+                "llama3-8b-8192",
+                "mixtral-8x7b-32768"
+            ]
+            last_error = None
+            for model_name in models_to_try:
+                try:
+                    response = self.groq_client.chat.completions.create(
+                        model=model_name,
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        temperature=0.0,
+                        max_tokens=800
+                    )
+                    answer_text = response.choices[0].message.content or ""
+                    if response.usage:
+                        token_usage = {
+                            "prompt_tokens": response.usage.prompt_tokens,
+                            "completion_tokens": response.usage.completion_tokens,
+                            "total_tokens": response.usage.total_tokens
+                        }
+                    actual_model_used = model_name
+                    last_error = None
+                    break
+                except Exception as e:
+                    last_error = e
+                    continue
+
+            if last_error and not answer_text:
+                answer_text = f"Error communicating with Groq API: {str(last_error)}"
         else:
             # Informative fallback if GROQ_API_KEY is not yet provided
             answer_text = (
@@ -174,6 +191,6 @@ class GroundedRAGService:
             total_latency_ms=round(total_elapsed_ms, 2),
             token_usage=token_usage,
             store_type=target_store_type,
-            model_used=settings.groq_model,
+            model_used=actual_model_used,
             raw_chunks=filtered_chunks
         )
