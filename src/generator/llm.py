@@ -115,11 +115,10 @@ class GroundedRAGService:
             models_to_try = [
                 settings.groq_model,
                 "llama-3.1-8b-instant",
-                "llama3-70b-8192",
-                "llama3-8b-8192",
-                "mixtral-8x7b-32768"
+                "llama-3.2-3b-preview",
+                "llama-3.2-1b-preview"
             ]
-            last_error = None
+            errors = []
             for model_name in models_to_try:
                 try:
                     response = self.groq_client.chat.completions.create(
@@ -139,14 +138,14 @@ class GroundedRAGService:
                             "total_tokens": response.usage.total_tokens
                         }
                     actual_model_used = model_name
-                    last_error = None
+                    errors = []
                     break
                 except Exception as e:
-                    last_error = e
+                    errors.append(f"{model_name}: {str(e)}")
                     continue
 
-            if last_error and not answer_text:
-                answer_text = f"Error communicating with Groq API: {str(last_error)}"
+            if errors and not answer_text:
+                answer_text = f"Error communicating with Groq API: {errors[0]}"
         else:
             # Informative fallback if GROQ_API_KEY is not yet provided
             answer_text = (
