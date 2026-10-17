@@ -6,27 +6,35 @@
   <title>Cost-Efficient RAG Explorer | LanceDB & Qdrant</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-primary: #0a0f1d;
-      --bg-surface: #111827;
-      --bg-card: #1e293b;
-      --border-color: #334155;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent: #38bdf8;
-      --accent-glow: rgba(56, 189, 248, 0.15);
-      --accent-green: #34d399;
-      --accent-purple: #a855f7;
-      --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --bg-page: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface-alt: #f1f5f9;
+      --border-subtle: #e2e8f0;
+      --border-focus: #3b82f6;
+      --text-heading: #0f172a;
+      --text-body: #334155;
+      --text-muted: #64748b;
+      --blue-primary: #2563eb;
+      --blue-hover: #1d4ed8;
+      --blue-light: #eff6ff;
+      --blue-border: #bfdbfe;
+      --green-status: #10b981;
+      --green-bg: #ecfdf5;
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+      --shadow-md: 0 4px 20px -2px rgba(15, 23, 42, 0.07), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+      --shadow-lg: 0 10px 30px -4px rgba(37, 99, 235, 0.12), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
       --font-mono: 'JetBrains Mono', monospace;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     body {
-      background-color: var(--bg-primary);
-      color: var(--text-main);
+      background-color: var(--bg-page);
+      color: var(--text-body);
       font-family: var(--font-sans);
       line-height: 1.6;
       min-height: 100vh;
@@ -34,17 +42,19 @@
       flex-direction: column;
     }
 
+    /* Top Navigation Bar */
     header {
-      background: rgba(17, 24, 39, 0.8);
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border-color);
-      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.85rem 2rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       position: sticky;
       top: 0;
       z-index: 50;
+      box-shadow: var(--shadow-sm);
     }
 
     .brand {
@@ -53,442 +63,624 @@
       gap: 0.75rem;
     }
     .brand-icon {
-      background: linear-gradient(135deg, #38bdf8, #818cf8);
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
+      background: linear-gradient(135deg, #2563eb, #38bdf8);
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 700;
-      color: #0a0f1d;
+      color: white;
+      font-weight: 800;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
     }
-    .brand-text h1 { font-size: 1.15rem; font-weight: 700; }
-    .brand-text p { font-size: 0.75rem; color: var(--text-muted); }
+    .brand-text h1 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-heading);
+      letter-spacing: -0.02em;
+    }
+    .brand-text p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
 
     .status-badge {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.45rem;
       padding: 0.35rem 0.85rem;
       border-radius: 9999px;
       font-size: 0.8rem;
       font-weight: 600;
-      background: rgba(52, 211, 153, 0.1);
-      color: var(--accent-green);
-      border: 1px solid rgba(52, 211, 153, 0.3);
+      background: var(--green-bg);
+      color: #047857;
+      border: 1px solid #a7f3d0;
     }
     .status-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--accent-green);
-      box-shadow: 0 0 8px var(--accent-green);
+      background: var(--green-status);
+      box-shadow: 0 0 6px var(--green-status);
     }
 
+    .btn-outline {
+      background: white;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 0.4rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover {
+      background: var(--bg-surface-alt);
+      color: var(--text-heading);
+      border-color: #cbd5e1;
+    }
+
+    /* Main Container */
     main {
       flex: 1;
-      max-width: 1200px;
+      max-width: 1160px;
       margin: 0 auto;
-      padding: 2rem 1.5rem;
+      padding: 2.25rem 1.5rem 3.5rem;
       width: 100%;
     }
 
-    .hero-banner {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 1.75rem 2rem;
+    /* Landing Hero & Search Area */
+    .hero-search-wrapper {
+      text-align: center;
       margin-bottom: 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: gap;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    }
-    .hero-content h2 { font-size: 1.4rem; margin-bottom: 0.4rem; }
-    .hero-content p { color: var(--text-muted); font-size: 0.9rem; max-width: 680px; }
-    .hero-badges { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
-    .tag {
-      background: rgba(56, 189, 248, 0.1);
-      color: var(--accent);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      padding: 0.2rem 0.6rem;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 600;
     }
 
-    .grid-container {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      gap: 1.5rem;
+    .hero-title {
+      font-size: 2.35rem;
+      font-weight: 800;
+      color: var(--text-heading);
+      letter-spacing: -0.03em;
+      margin-bottom: 0.6rem;
+      line-height: 1.2;
     }
-    @media (max-width: 900px) {
-      .grid-container { grid-template-columns: 1fr; }
+    .hero-title span {
+      background: linear-gradient(135deg, #2563eb 0%, #0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
-    .panel {
+    .hero-subtitle {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      max-width: 720px;
+      margin: 0 auto 1.75rem;
+      font-weight: 400;
+    }
+
+    /* Prominent Landing Search Bar */
+    .search-container {
       background: var(--bg-surface);
-      border: 1px solid var(--border-color);
-      border-radius: 14px;
-      padding: 1.5rem;
-    }
-    .panel h3 {
-      font-size: 1rem;
-      margin-bottom: 1rem;
-      color: var(--text-main);
+      border: 2px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 0.5rem 0.6rem 0.5rem 1.25rem;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-    }
-
-    .form-group {
-      margin-bottom: 1.25rem;
-    }
-    .form-group label {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: 0.4rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    select, input[type="text"] {
-      width: 100%;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 0.65rem 0.85rem;
-      color: var(--text-main);
-      font-size: 0.9rem;
-      font-family: inherit;
-      outline: none;
+      box-shadow: var(--shadow-lg);
       transition: border-color 0.2s, box-shadow 0.2s;
+      max-width: 860px;
+      margin: 0 auto 1rem;
     }
-    select:focus, input[type="text"]:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
+    .search-container:focus-within {
+      border-color: var(--blue-primary);
+      box-shadow: 0 10px 35px -4px rgba(37, 99, 235, 0.2), 0 0 0 4px rgba(37, 99, 235, 0.1);
     }
-
-    .range-wrap {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
+    .search-icon {
+      font-size: 1.2rem;
+      color: var(--blue-primary);
+      margin-right: 0.75rem;
+      user-select: none;
     }
-    .range-wrap input { flex: 1; accent-color: var(--accent); }
-    .range-val {
-      font-family: var(--font-mono);
-      font-weight: 600;
-      color: var(--accent);
-      min-width: 24px;
-    }
-
-    .sample-prompts {
-      margin-top: 1rem;
-    }
-    .sample-btn {
-      display: block;
-      width: 100%;
-      text-align: left;
-      background: rgba(30, 41, 59, 0.6);
-      border: 1px solid rgba(51, 65, 85, 0.7);
-      color: var(--text-muted);
-      font-size: 0.8rem;
-      padding: 0.55rem 0.75rem;
-      border-radius: 6px;
-      margin-bottom: 0.4rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .sample-btn:hover {
-      background: rgba(56, 189, 248, 0.1);
-      color: var(--accent);
-      border-color: rgba(56, 189, 248, 0.4);
-    }
-
-    .query-box {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
-    }
-    .query-box input {
+    .search-input {
       flex: 1;
-      padding: 0.85rem 1rem;
-      font-size: 0.95rem;
+      border: none;
+      outline: none;
+      font-size: 1.05rem;
+      color: var(--text-heading);
+      background: transparent;
+      font-family: inherit;
+      font-weight: 500;
     }
-    .query-btn {
-      background: linear-gradient(135deg, #38bdf8, #2563eb);
+    .search-input::placeholder {
+      color: #94a3b8;
+      font-weight: 400;
+    }
+    .search-submit-btn {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
       color: white;
       border: none;
-      border-radius: 8px;
-      padding: 0 1.5rem;
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
-    }
-    .query-btn:hover { opacity: 0.9; }
-    .query-btn:active { transform: scale(0.98); }
-    .query-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .telemetry-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
-    @media (max-width: 600px) {
-      .telemetry-row { grid-template-columns: repeat(2, 1fr); }
-    }
-    .metric-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
       border-radius: 10px;
-      padding: 0.85rem;
-      text-align: center;
+      padding: 0.85rem 1.75rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+      transition: transform 0.15s, opacity 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
     }
-    .metric-label {
-      font-size: 0.7rem;
+    .search-submit-btn:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+    .search-submit-btn:active {
+      transform: translateY(0);
+    }
+    .search-submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Quick Sample Prompt Pills */
+    .sample-pill-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    .sample-label {
+      font-size: 0.78rem;
+      font-weight: 700;
       color: var(--text-muted);
       text-transform: uppercase;
-      font-weight: 600;
       letter-spacing: 0.05em;
     }
-    .metric-val {
-      font-size: 1.25rem;
-      font-weight: 700;
-      font-family: var(--font-mono);
-      color: var(--accent);
-      margin-top: 0.2rem;
+    .sample-pill {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-body);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: var(--shadow-sm);
+    }
+    .sample-pill:hover {
+      border-color: var(--blue-border);
+      background: var(--blue-light);
+      color: var(--blue-primary);
+      transform: translateY(-1px);
     }
 
-    .response-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
+    /* Controls Bar */
+    .controls-bar {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+    .control-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-heading);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    
+    .select-dropdown {
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-heading);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .select-dropdown:focus {
+      border-color: var(--blue-primary);
+    }
+
+    .range-control {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .range-control input[type="range"] {
+      accent-color: var(--blue-primary);
+      cursor: pointer;
+      width: 100px;
+    }
+    .range-badge {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--blue-primary);
+      background: var(--blue-light);
+      border: 1px solid var(--blue-border);
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+
+    /* Advanced Settings Collapse */
+    .advanced-settings {
+      display: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
       border-radius: 12px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+      padding: 1rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .endpoint-input {
+      width: 100%;
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 0.6rem 0.85rem;
+      color: var(--text-heading);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      outline: none;
+      margin-top: 0.4rem;
+    }
+
+    /* Telemetry Metrics Row */
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 900px) {
+      .telemetry-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .telemetry-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .telemetry-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      border-top: 3px solid var(--blue-primary);
+      transition: transform 0.2s;
+    }
+    .telemetry-card:hover {
+      transform: translateY(-2px);
+    }
+    .telemetry-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .telemetry-value {
+      font-size: 1.35rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: var(--blue-primary);
+      margin-top: 0.25rem;
+    }
+
+    /* Grounded Answer Card */
+    .result-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-left: 5px solid var(--blue-primary);
+      border-radius: 14px;
+      padding: 1.75rem 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow-md);
       position: relative;
     }
-    .response-header {
+    .result-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 0.75rem;
-      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 0.85rem;
+      margin-bottom: 1.25rem;
     }
-    .response-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--text-muted);
-    }
-    .answer-text {
-      font-size: 1rem;
-      color: #e2e8f0;
-      line-height: 1.7;
-      white-space: pre-wrap;
-    }
-
-    .citation-list {
-      margin-top: 1.25rem;
-      border-top: 1px solid rgba(51, 65, 85, 0.6);
-      padding-top: 1rem;
-    }
-    .citation-title {
-      font-size: 0.75rem;
-      font-weight: 700;
+    .result-tag {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--blue-primary);
       text-transform: uppercase;
-      color: var(--accent);
       letter-spacing: 0.05em;
-      margin-bottom: 0.5rem;
-    }
-    .citation-pill {
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      background: rgba(30, 41, 59, 0.8);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      padding: 0.3rem 0.65rem;
-      border-radius: 6px;
-      font-size: 0.75rem;
+    }
+    .model-badge {
       font-family: var(--font-mono);
-      margin-right: 0.5rem;
-      margin-bottom: 0.4rem;
-      color: #cbd5e1;
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: var(--blue-light);
+      color: var(--blue-primary);
+      border: 1px solid var(--blue-border);
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
     }
 
-    .raw-chunks {
+    .answer-body {
+      font-size: 1.05rem;
+      color: var(--text-heading);
+      line-height: 1.75;
+      white-space: pre-wrap;
+    }
+
+    /* Citations Area */
+    .citations-section {
       margin-top: 1.5rem;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 1.25rem;
     }
-    .chunk-item {
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid var(--border-color);
+    .citations-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.65rem;
+    }
+    .citations-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .citation-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--blue-light);
+      border: 1px solid var(--blue-border);
+      color: var(--blue-primary);
+      padding: 0.35rem 0.75rem;
       border-radius: 8px;
-      padding: 1rem;
-      margin-bottom: 0.75rem;
-      font-size: 0.85rem;
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
     }
-    .chunk-header {
+
+    /* Retrieved Chunks Drawer */
+    .chunks-section {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 1.5rem 2rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .chunks-heading {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--text-heading);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .chunk-card {
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.85rem;
+      transition: border-color 0.2s;
+    }
+    .chunk-card:hover {
+      border-color: #cbd5e1;
+    }
+    .chunk-meta {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       font-family: var(--font-mono);
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       color: var(--text-muted);
-      margin-bottom: 0.4rem;
+      margin-bottom: 0.45rem;
     }
-    .chunk-text {
-      color: #94a3b8;
+    .chunk-tag-pill {
+      font-weight: 700;
+      color: var(--blue-primary);
+      background: white;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+    }
+    .chunk-content {
+      color: var(--text-body);
+      font-size: 0.88rem;
+      line-height: 1.6;
     }
 
+    /* Footer */
     footer {
+      background: white;
+      border-top: 1px solid var(--border-subtle);
       text-align: center;
       padding: 1.5rem;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       color: var(--text-muted);
-      border-top: 1px solid var(--border-color);
       margin-top: auto;
     }
   </style>
 </head>
 <body>
 
+  <!-- Header -->
   <header>
     <div class="brand">
       <div class="brand-icon">⚡</div>
       <div class="brand-text">
         <h1>Cost-Efficient RAG Explorer</h1>
-        <p>LanceDB & Qdrant Embedded Backend</p>
+        <p>LanceDB &amp; Qdrant Columnar Indexing</p>
       </div>
     </div>
-    <div class="status-badge">
-      <div class="status-dot"></div>
-      <span id="backendStatus">Live on Render</span>
+    <div class="header-actions">
+      <div class="status-badge">
+        <div class="status-dot"></div>
+        <span id="backendStatus">Live on Render</span>
+      </div>
+      <button class="btn-outline" onclick="toggleSettings()">⚙️ Settings</button>
     </div>
   </header>
 
   <main>
-    <div class="hero-banner">
-      <div class="hero-content">
-        <h2>Scalable QA with Zero Idle Pod Cost</h2>
-        <p>This RAG application evaluates semantic retrieval over PDF, HTML, and Markdown corpora using columnar disk indexing (LanceDB) and local embedded vectors (Qdrant), cutting managed database infrastructure costs by up to 99.8%.</p>
-        <div class="hero-badges">
-          <span class="tag">LanceDB Embedded</span>
-          <span class="tag">Qdrant Rust Engine</span>
-          <span class="tag">BAAI/bge-small 384d</span>
-          <span class="tag">Groq Llama 3.3 / 3.1</span>
+    <!-- Landing Page Hero & Search -->
+    <div class="hero-search-wrapper">
+      <h2 class="hero-title">Cost-Efficient <span>Knowledge Search</span></h2>
+      <p class="hero-subtitle">
+        Perform sub-second grounded question answering across PDF, HTML &amp; Markdown documents using disk-native vector stores with zero idle pod infrastructure costs.
+      </p>
+
+      <!-- Prominent Landing Search Bar -->
+      <div class="search-container">
+        <span class="search-icon">🔍</span>
+        <input 
+          type="text" 
+          id="queryInput" 
+          class="search-input" 
+          placeholder="Ask anything about vector indexing, chunking, or cost optimization..." 
+          value="What is HNSW and what recall accuracy does it provide?"
+          onkeydown="if(event.key === 'Enter') runQuery()"
+        >
+        <button class="search-submit-btn" id="searchBtn" onclick="runQuery()">
+          <span>Search</span> →
+        </button>
+      </div>
+
+      <!-- Quick Benchmark Query Pills -->
+      <div class="sample-pill-row">
+        <span class="sample-label">Try Asking:</span>
+        <button class="sample-pill" onclick="selectSample('What is HNSW and what recall accuracy does it provide?')">⚡ HNSW Accuracy</button>
+        <button class="sample-pill" onclick="selectSample('How does IVF-PQ achieve memory reduction compared to raw HNSW?')">📉 95% Memory Reduction</button>
+        <button class="sample-pill" onclick="selectSample('What is the recommended chunk size for technical documents?')">📏 Optimal Chunk Size</button>
+        <button class="sample-pill" onclick="selectSample('What is the monthly cost comparison for 10M vectors between managed pods and S3 LanceDB?')">💰 10M Vectors Cost</button>
+        <button class="sample-pill" onclick="selectSample('What is the capital of France?')">🛡️ France Capital (Adversarial)</button>
+      </div>
+    </div>
+
+    <!-- Collapsible Advanced Settings -->
+    <div class="advanced-settings" id="advancedSettings">
+      <label class="control-label">Backend Service API Endpoint</label>
+      <input type="text" id="apiEndpoint" class="endpoint-input" value="https://cost-efficient-rag-service.onrender.com">
+    </div>
+
+    <!-- Retrieval Controls Bar -->
+    <div class="controls-bar">
+      <div class="control-group">
+        <label class="control-label">Vector Store:</label>
+        <select id="storeSelect" class="select-dropdown">
+          <option value="lancedb" selected>LanceDB (Disk Columnar)</option>
+          <option value="qdrant">Qdrant (Rust Embedded)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">Format Filter:</label>
+        <select id="formatFilter" class="select-dropdown">
+          <option value="">All Formats (PDF, HTML, MD)</option>
+          <option value="pdf">PDF Documents (.pdf)</option>
+          <option value="html">HTML Guides (.html)</option>
+          <option value="md">Markdown Specs (.md)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">Top-K Chunks:</label>
+        <div class="range-control">
+          <input type="range" id="topKSlider" min="1" max="10" value="4">
+          <span class="range-badge" id="topKVal">4</span>
         </div>
       </div>
     </div>
 
-    <div class="grid-container">
-      <!-- Settings Panel -->
-      <aside class="panel">
-        <h3>⚙️ Retrieval Settings</h3>
+    <!-- Telemetry Row -->
+    <div class="telemetry-grid">
+      <div class="telemetry-card">
+        <div class="telemetry-label">Retrieval Latency</div>
+        <div class="telemetry-value" id="retrievalLatency">-- ms</div>
+      </div>
+      <div class="telemetry-card">
+        <div class="telemetry-label">Total Latency</div>
+        <div class="telemetry-value" id="totalLatency">-- ms</div>
+      </div>
+      <div class="telemetry-card">
+        <div class="telemetry-label">Chunks Retrieved</div>
+        <div class="telemetry-value" id="chunksCount">--</div>
+      </div>
+      <div class="telemetry-card">
+        <div class="telemetry-label">Token Usage</div>
+        <div class="telemetry-value" id="tokensUsed">--</div>
+      </div>
+      <div class="telemetry-card">
+        <div class="telemetry-label">Active Store</div>
+        <div class="telemetry-value" id="activeStoreBadge">LanceDB</div>
+      </div>
+    </div>
 
-        <div class="form-group">
-          <label>Backend API Endpoint</label>
-          <input type="text" id="apiEndpoint" value="https://cost-efficient-rag-service.onrender.com">
-        </div>
+    <!-- Grounded Answer Card -->
+    <div class="result-card" id="responseCard">
+      <div class="result-header">
+        <span class="result-tag">✓ Grounded Answer</span>
+        <span class="model-badge" id="modelUsedBadge">Ready</span>
+      </div>
+      <div class="answer-body" id="answerOutput">
+        Click 'Search' or pick one of the sample benchmark queries above to run a grounded retrieval over the document corpus.
+      </div>
 
-        <div class="form-group">
-          <label>Vector Store Engine</label>
-          <select id="storeSelect">
-            <option value="lancedb" selected>LanceDB (Columnar Disk-Native)</option>
-            <option value="qdrant">Qdrant (Embedded In-Process)</option>
-          </select>
-        </div>
+      <div class="citations-section" id="citationBox" style="display: none;">
+        <div class="citations-title">Source Citations &amp; Relevance</div>
+        <div class="citations-wrap" id="citationPills"></div>
+      </div>
+    </div>
 
-        <div class="form-group">
-          <label>Format Filter</label>
-          <select id="formatFilter">
-            <option value="">All Formats (PDF, HTML, MD)</option>
-            <option value="pdf">PDF Documents (.pdf)</option>
-            <option value="html">HTML Guides (.html)</option>
-            <option value="md">Markdown Specs (.md)</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Top-K Retrieval</label>
-          <div class="range-wrap">
-            <input type="range" id="topKSlider" min="1" max="10" value="4">
-            <span class="range-val" id="topKVal">4</span>
-          </div>
-        </div>
-
-        <div class="sample-prompts">
-          <label>Sample Benchmark Queries</label>
-          <button class="sample-btn" onclick="selectSample('What is HNSW and what recall accuracy does it provide?')">1. What is HNSW and what recall accuracy does it provide?</button>
-          <button class="sample-btn" onclick="selectSample('How does IVF-PQ achieve memory reduction compared to raw HNSW?')">2. How does IVF-PQ achieve 95% memory reduction?</button>
-          <button class="sample-btn" onclick="selectSample('What is the recommended chunk size for technical documents?')">3. Recommended chunk size for engineering docs?</button>
-          <button class="sample-btn" onclick="selectSample('What is the monthly cost comparison for 10M vectors between managed pods and S3 LanceDB?')">4. 10M Vector cost: Managed vs S3 LanceDB?</button>
-          <button class="sample-btn" onclick="selectSample('What is the capital of France?')">5. Out-of-corpus query (tests fallback)</button>
-        </div>
-      </aside>
-
-      <!-- Search & Results Panel -->
-      <section class="panel">
-        <h3>🔍 Ask Document Knowledge Base</h3>
-
-        <div class="query-box">
-          <input type="text" id="queryInput" placeholder="Ask a question about vector indexing, chunking, or low-cost RAG..." value="What is HNSW and what recall accuracy does it provide?">
-          <button class="query-btn" id="searchBtn" onclick="runQuery()">Search</button>
-        </div>
-
-        <!-- Telemetry Row -->
-        <div class="telemetry-row">
-          <div class="metric-card">
-            <div class="metric-label">Retrieval Latency</div>
-            <div class="metric-val" id="retrievalLatency">-- ms</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">Total Latency</div>
-            <div class="metric-val" id="totalLatency">-- ms</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">Chunks Retrieved</div>
-            <div class="metric-val" id="chunksCount">--</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">Token Usage</div>
-            <div class="metric-val" id="tokensUsed">--</div>
-          </div>
-        </div>
-
-        <!-- Grounded Response Card -->
-        <div class="response-card" id="responseCard">
-          <div class="response-header">
-            <span class="response-title">Grounded Answer</span>
-            <span id="modelUsedBadge" style="font-size: 0.75rem; color: var(--accent); font-family: var(--font-mono);"></span>
-          </div>
-          <div class="answer-text" id="answerOutput">
-            Click 'Search' or choose a sample query to retrieve answers grounded with source citations.
-          </div>
-
-          <div class="citation-list" id="citationBox" style="display: none;">
-            <div class="citation-title">Source Citations</div>
-            <div id="citationPills"></div>
-          </div>
-        </div>
-
-        <!-- Raw Chunks Section -->
-        <div class="raw-chunks" id="rawChunksSection" style="display: none;">
-          <h3 style="font-size: 0.9rem; margin-bottom: 0.75rem;">Retrieved Context Chunks</h3>
-          <div id="chunksList"></div>
-        </div>
-      </section>
+    <!-- Raw Context Chunks Accordion -->
+    <div class="chunks-section" id="rawChunksSection" style="display: none;">
+      <div class="chunks-heading">📄 Retrieved Context Passages Injected into LLM Prompt</div>
+      <div id="chunksList"></div>
     </div>
   </main>
 
   <footer>
-    Cost-Efficient RAG Application &bull; SynergiesLabs Assessment &bull; Backed by LanceDB &amp; Qdrant
+    Cost-Efficient RAG Application &bull; SynergiesLabs Assessment &bull; Powered by LanceDB &amp; Qdrant
   </footer>
 
   <script>
@@ -497,6 +689,11 @@
     topKSlider.addEventListener('input', () => {
       topKVal.innerText = topKSlider.value;
     });
+
+    function toggleSettings() {
+      const el = document.getElementById('advancedSettings');
+      el.style.display = el.style.display === 'block' ? 'none' : 'block';
+    }
 
     function selectSample(text) {
       document.getElementById('queryInput').value = text;
@@ -516,8 +713,10 @@
       searchBtn.disabled = true;
       searchBtn.innerText = "Searching...";
 
+      document.getElementById('activeStoreBadge').innerText = store === 'lancedb' ? 'LanceDB' : 'Qdrant';
+
       const answerEl = document.getElementById('answerOutput');
-      answerEl.innerText = "Retrieving context and generating grounded answer from " + store.toUpperCase() + "...";
+      answerEl.innerText = `Retrieving context and generating grounded answer from ${store.toUpperCase()}...`;
 
       const payload = {
         query: query,
@@ -557,8 +756,8 @@
           citationBox.style.display = 'block';
           data.citations.forEach(c => {
             const pill = document.createElement('span');
-            pill.className = 'citation-pill';
-            pill.innerText = `📄 ${c.filename} (${c.section}) - sim: ${c.score}`;
+            pill.className = 'citation-chip';
+            pill.innerText = `📄 ${c.filename} (${c.section}) • sim: ${c.score}`;
             citationPills.appendChild(pill);
           });
         } else {
@@ -573,13 +772,13 @@
           rawSection.style.display = 'block';
           data.raw_chunks.forEach((chunk, i) => {
             const item = document.createElement('div');
-            item.className = 'chunk-item';
+            item.className = 'chunk-card';
             item.innerHTML = `
-              <div class="chunk-header">
-                <span>[Chunk-${i+1}] ${chunk.chunk_id}</span>
+              <div class="chunk-meta">
+                <span class="chunk-tag-pill">[Chunk-${i+1}] ${chunk.chunk_id}</span>
                 <span>Similarity: ${chunk.score} &bull; ${chunk.format.toUpperCase()}</span>
               </div>
-              <div class="chunk-text">${chunk.text}</div>
+              <div class="chunk-content">${chunk.text}</div>
             `;
             chunksList.appendChild(item);
           });
@@ -591,7 +790,7 @@
         answerEl.innerText = "Error: " + err.message + "\n\nPlease ensure the backend URL is accessible.";
       } finally {
         searchBtn.disabled = false;
-        searchBtn.innerText = "Search";
+        searchBtn.innerHTML = `<span>Search</span> →`;
       }
     }
   </script>
