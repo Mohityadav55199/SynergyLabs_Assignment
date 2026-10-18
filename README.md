@@ -66,7 +66,7 @@ python -m src.cli ingest --store qdrant                # optional second store
 python -m src.cli query "What is the memory overhead per vector for an HNSW index?" --k 4
 python -m src.cli query "What is the chunk overlap default?" --filter format=html
 python -m src.cli serve                                # http://localhost:8000/docs
-python -m pytest tests                                 # 53 tests
+python -m pytest tests                                 # 54 tests
 python -m evaluation.harness                           # all three evaluation layers
 ```
 
@@ -130,7 +130,23 @@ Small chunks (200) and no overlap (500/0) degrade retrieval. **Larger chunks sco
 
 Judge: `openai/gpt-oss-120b` (different family from the Qwen generator, to limit self-enhancement bias), temperature 0. Faithfulness is claim-level (supported claims / total claims, judged against the retrieved context only); answer relevance and correctness-vs-gold are 1-5 rubric scores rescaled to 0-1; EM and token-F1 vs the gold answers. Every judge prompt and raw response is logged to `evaluation/judge_log.jsonl`. Refusal accuracy on the 5 unanswerable questions and false-refusal rate on the 25 answerable ones are reported separately.
 
-**STATUS: PENDING.** The committed result files from an earlier version of this repo were produced with no LLM key (the "answers" were placeholder strings) and are discarded; nothing in this README is simulated. Run `python -m evaluation.harness` with `GROQ_API_KEY` set; `evaluation/results_summary.md` then contains the table and this section gets filled from it.
+**Results** (generator `qwen/qwen3.8-27b`, judge `openai/gpt-oss-120b`, k = 4, unfiltered retrieval, LanceDB; both on Groq):
+
+| Metric | Value | Notes |
+|---|---|---|
+| Faithfulness (claim-level) | **1.00** | 24 answered questions; every claim in every answer was judged supported by the retrieved chunks |
+| Answer relevance | **1.00** | 24 answered questions |
+| Correctness vs gold (judge, 0-1) | **0.98** | one answer (q19) scored 0.5: it gave only the write-contention half of a two-part gold answer |
+| Token F1 vs gold | **0.66** | long, cited answers vs short gold sentences |
+| Exact match vs gold | **0.00** | expected: answers carry `[Chunk-N]` citations and paraphrase; EM is reported because the dataset has gold answers, not because it is informative here |
+| Refusal accuracy, 5 unanswerable questions | **5 / 5** | 4 stopped by the similarity gate (no LLM call), the near-domain FAISS question refused by the model itself |
+| False refusal rate, 25 answerable questions | **1 / 25 (4%)** | q10, a retrieval miss (the relevant chunk was not in the top 4, so refusing was the right behaviour given what it saw) |
+| Mean tokens per query | 538 | judge: 24 calls, 24,357 tokens, 0 unparseable responses |
+| End-to-end latency incl. LLM, p50 / p95 | 408 ms / 1,249 ms | the p50 is low partly because 4 of 30 queries are refused before the LLM |
+
+Method: faithfulness is claim-level (supported claims / total claims, judged against the retrieved context only); relevance and correctness are 1-5 rubric scores rescaled to 0-1. Every judge prompt, raw response and verdict is in `evaluation/judge_log.jsonl`. Spot checks: the judge did penalise q19 for omitting half the gold answer and gave a written reason, so it is not a rubber stamp.
+
+**How far to trust this.** Faithfulness and relevance are at the ceiling, which tells us the generator rarely strays from short, well-retrieved context; it does *not* prove the judge would catch subtle errors (a single judge, one pass, no human labels, no calibration against human judgements; that is Problem 2's territory). Faithfulness is only measured on questions the system answered. 25 questions is small.
 
 ### 6.5 Latency
 
@@ -138,15 +154,15 @@ Warm, 30 questions x 5 repeats = 150 samples, query embedding timed separately f
 
 | Setting | p50 | p95 | Notes |
 |---|---|---|---|
-| Query embedding (ONNX, CPU) | 8.7 ms | 16.9 ms | same for both stores |
-| Vector search, 100-chunk corpus: LanceDB | 9.9 ms | 21.5 ms | k=4 |
-| Vector search, 100-chunk corpus: Qdrant local | 1.1 ms | 2.0 ms | in-memory numpy at this size |
+| Query embedding (ONNX, CPU) | 37 ms | 68 ms | same model for both stores; a quieter earlier run measured ~9 / 17 ms, so treat this as machine-dependent |
+| Vector search, 100-chunk corpus: LanceDB | 18.7 ms | 25.0 ms | k=4 (earlier quiet run: 9.9 / 21.5) |
+| Vector search, 100-chunk corpus: Qdrant local | 2.9 ms | 3.9 ms | in-memory numpy at this size |
 | **100,000 vectors, LanceDB flat scan** | **598 ms** | 681 ms | synthetic, `evaluation/results_scale.json` |
 | 100,000 vectors, flat scan + `format` filter | 721 ms | 820 ms | |
 | **100,000 vectors, LanceDB IVF_PQ (nprobes 20)** | **28 ms** | 41 ms | index build 125 s, +6 MB disk |
 | 1,000,000 vectors | not measured | | building an IVF_PQ index on 1M x 384 on this laptop took longer than the time I allowed; the 100K result is the scale evidence |
 
-Takeaways: the 100-chunk numbers say nothing about scale; at 100K vectors an unindexed LanceDB scan is already too slow on a laptop, and **an ANN index (IVF_PQ) is required past ~50K vectors**. The scale benchmark uses random vectors, so it measures speed and size only, not recall; Qdrant's local mode was too slow to load at 20K+ vectors and is not measured at scale. End-to-end latency including the LLM is reported by the harness once the answer layer runs.
+Takeaways: the 100-chunk numbers say nothing about scale; at 100K vectors an unindexed LanceDB scan is already too slow on a laptop, and **an ANN index (IVF_PQ) is required past ~50K vectors**. The scale benchmark uses random vectors, so it measures speed and size only, not recall; Qdrant's local mode was too slow to load at 20K+ vectors and is not measured at scale. End-to-end latency including the LLM is in 6.4 (p50 408 ms, p95 1,249 ms).
 
 ### 6.6 Similarity gate
 
@@ -176,7 +192,7 @@ Full model with sources: [evaluation/cost_analysis.md](evaluation/cost_analysis.
 3. Availability requirements: single node with no replicas fails whole; if the client needs multi-AZ failover or a contractual SLA, buy it rather than build it.
 4. If the index is small (under ~1M vectors) and the team has no one to own ops, Pinecone's $50 floor (or Qdrant's free tier) is cheaper than the engineering time of self-hosting. Cost alone does not justify self-hosting at this scale.
 
-**Was retrieval or generation the weak link?** On the evidence I have so far, **retrieval has measurable weaknesses, and I cannot yet say anything about generation**, because the answer layer is PENDING a key (6.4). What the retrieval data shows: 2 of 25 questions miss the top 4 entirely, MRR is 0.80 so the right chunk is often not first, and the near-domain question scores above the similarity threshold, so the gate cannot separate it from real questions. Weak points are chunking (a heading stranded from its text, a fact split across two chunks) and a small general-purpose embedding model confusing generic vocabulary. I will complete this paragraph from the judge's faithfulness / relevance / refusal numbers once they exist, rather than assert a conclusion first.
+**Was retrieval or generation the weak link?** **Retrieval.** Generation is the strong link on this evidence: with the right chunks in context the generator was faithful (1.00), relevant (1.00), correct (0.98), cited its sources, and refused all 5 unanswerable questions. Every error I can find in the pipeline starts at retrieval: 2 of 25 questions miss the top 4 entirely (q10, q19), MRR is 0.80 so the right chunk is often not first, the one false refusal (q10) is a retrieval miss, and the one partial answer (q19) is a case where the retrieved chunk held only half of the answer (the facts sit in adjacent chunks split at a heading). The similarity gate also cannot separate the near-domain unanswerable question (0.713) from the weakest real question (0.726), so that case depends on the model's refusal rule, which held here. The likely fixes are retrieval-side: heading-aware chunking so a heading and its text stay together, a larger k or a re-ranker, hybrid (BM25 + dense) search for generic-vocabulary questions, and re-tuning chunk size on the real corpus. Caveat: with only 25 answerable questions and an LLM judge that scores 1.00, differences of one question are noise, and "generation is fine" is a statement about this easy, small corpus, not a guarantee.
 
 ## 9. Known limitations
 
@@ -190,6 +206,6 @@ src/ api/main.py  cli.py  config.py | ingestion/{parsers,chunker,pipeline}.py | 
 evaluation/ dataset.json  ground_truth.py  ir_metrics.py  judge.py  harness.py
             chunking_ablation.py  scale_benchmark.py  cost_model.py
             results_*.json  results_summary.md  cost_analysis.md
-tests/      chunker, stores (both backends), IR metrics, judge parsing, generator, API   (53 tests)
+tests/      chunker, stores (both backends), IR metrics, judge parsing, generator, API   (54 tests)
 public/     static chat UI (Vercel)      render.yaml  Dockerfile  .github/workflows/keep-warm.yml
 ```

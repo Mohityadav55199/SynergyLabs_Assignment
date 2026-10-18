@@ -55,7 +55,10 @@ Grounded Answer (cite chunks like [Chunk-1]):"""
 _CITATION_RE = re.compile(r"\[?Chunk-(\d+)\]?", re.IGNORECASE)
 
 def is_fallback_answer(answer: str) -> bool:
-    return "do not have sufficient information" in answer.lower()
+    """True only when the answer IS the refusal sentence, not when it merely quotes it
+    (e.g. a correct answer to "what phrase is returned when context is insufficient?")."""
+    core = re.sub(r"\[?Chunk-\d+\]?", "", answer, flags=re.I).strip().strip("\"'` .").lower()
+    return core == FALLBACK_ANSWER.strip(" .").lower()
 
 def extract_cited_indices(answer: str, n_chunks: int) -> List[int]:
     """0-based indices of the chunks the answer cites. Exact match on the number, so 'Chunk-1' never matches 'Chunk-10'."""

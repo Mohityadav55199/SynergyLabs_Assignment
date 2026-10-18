@@ -13,6 +13,9 @@ def test_citation_parsing_is_exact():
 def test_fallback_detection():
     assert is_fallback_answer("I do not have sufficient information in the provided context to answer this question.")
     assert not is_fallback_answer("HNSW is a graph index [Chunk-1].")
+    assert is_fallback_answer('"I do not have sufficient information in the provided context to answer this question."')
+    # quoting the sentence inside a real answer is not a refusal
+    assert not is_fallback_answer('The system must reply: "I do not have sufficient information in the provided context to answer this question." [Chunk-1]')
 
 
 class FakeStore:

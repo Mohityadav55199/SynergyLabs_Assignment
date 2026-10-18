@@ -146,7 +146,7 @@ def evaluate_answers(store_type: str, cases: List[Dict], k: int) -> Dict[str, An
         refused = is_fallback_answer(resp.answer)
         row: Dict[str, Any] = {
             "id": tc["id"], "question": tc["question"], "is_answerable": tc["is_answerable"],
-            "generation_mode": resp.generation_mode, "refused": refused, "answer": resp.answer,
+            "generation_mode": resp.generation_mode, "model_used": resp.model_used, "refused": refused, "answer": resp.answer,
             "gold_answer": tc["gold_answer"], "citations": [c.chunk_id for c in resp.citations],
             "tokens": resp.token_usage, "latency_ms": {"search": resp.retrieval_latency_ms,
                                                        "generation": resp.generation_latency_ms,
@@ -172,7 +172,7 @@ def evaluate_answers(store_type: str, cases: List[Dict], k: int) -> Dict[str, An
     s = lambda r, key: (r["judge"]["scores"] or {}).get(key)  # noqa: E731
     judge_failures = sum(1 for r in ans_scored if r["judge"]["scores"] is None)
     return {
-        "status": "OK", "generator_model": settings.groq_model, "judge_model": judge.model,
+        "status": "OK", "generator_model": next((r["model_used"] for r in rows if r.get("model_used")), settings.groq_model), "judge_model": judge.model,
         "judge_calls": judge.calls, "judge_tokens": judge.tokens, "judge_unparseable": judge_failures,
         "answerable_total": len(ans), "answerable_answered": len(ans_scored),
         "false_refusal_rate_on_answerable": round(1 - len(ans_scored) / len(ans), 4) if ans else None,

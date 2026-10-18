@@ -25,7 +25,7 @@ ret = res["retrieval_evaluation"]["aggregate"]["unfiltered"]
 lat = res["retrieval_evaluation"]["latency_ms"]
 ans = res["answer_evaluation"]
 ok = ans["status"] == "OK"
-PEND = "PENDING: needs GROQ_API_KEY (see README 6.4)"
+PEND = "n/a"
 
 d = docx.Document(SRC)
 body = [el for el in d.element.body.iterchildren() if el.tag.endswith("}p")]
@@ -86,7 +86,7 @@ set_cell(T[2].rows[0].cells[0], """git clone https://github.com/Mohityadav55199/
 python -m venv venv && source venv/bin/activate      # Windows: .\\venv\\Scripts\\activate
 pip install -r requirements-dev.txt
 cp .env.example .env                                  # set GROQ_API_KEY
-python -m pytest tests                                # 53 tests""", mono=True)
+python -m pytest tests                                # 54 tests""", mono=True)
 set_cell(T[3].rows[0].cells[0], """# defaults: chunk size 500 chars, overlap 50 chars
 python -m src.cli ingest --store lancedb              # ingests data/corpus (PDF, HTML, MD)
 python -m src.cli ingest --store lancedb --chunk-size 400 --overlap 40
@@ -165,7 +165,7 @@ design = [
     "Default 500 chars / 50 overlap, recursive splitter (paragraph, line, sentence, word) so chunks end on sentence boundaries. Measured (README 6.3): 200/20 and 500/0 are worse (hit 0.88, MRR 0.72-0.75); "
     "350-800 are on par; 1200/120 scored higher (hit 1.00, MRR 0.92). I did not adopt it because my relevance labels reward large chunks, k=4 x 1200 chars is ~4x the prompt tokens, and the corpus is tiny. "
     "The default is a defensible middle, not a tuned optimum; it should be re-tuned on the real corpus with the answer layer.",
-    "BAAI/bge-small-en-v1.5, 384-d, run locally via ONNX: $0 per embedding, ~9 ms/query on CPU, 1.5 KB/vector. Larger models (768-1024-d) cost 2-3x the storage/RAM and CPU for gains I did not measure; "
+    "BAAI/bge-small-en-v1.5, 384-d, run locally via ONNX: $0 per embedding, ~40 ms/query on CPU, 1.5 KB/vector. Larger models (768-1024-d) cost 2-3x the storage/RAM and CPU for gains I did not measure; "
     "a hosted embedding API would add per-token cost and a network hop. Weakness seen: generic RAG vocabulary confuses it (q10).",
     "Two layers. (1) Similarity gate before the LLM: if the best chunk's cosine score is < 0.68 the service returns a fixed refusal, calls no LLM and uses 0 tokens. Tuned on the eval set: answerable top-1 >= 0.726, "
     "unanswerable <= 0.713, so it blocks 4/5 unanswerable questions; the near-domain one (0.713) is not separable. (2) The prompt tells the model to answer only from numbered chunks, cite [Chunk-N], and otherwise emit the exact refusal sentence, at temperature 0; "

@@ -1033,14 +1033,14 @@
     },
     "latency_ms": {
       "samples": 150,
-      "query_embedding_p50": 10.3,
-      "query_embedding_p95": 37.29,
-      "vector_search_p50": 1.1,
-      "vector_search_p95": 1.95
+      "query_embedding_p50": 38.62,
+      "query_embedding_p95": 58.56,
+      "vector_search_p50": 2.87,
+      "vector_search_p95": 3.91
     }
   },
   "answer_evaluation": {
     "status": "NOT_RUN",
-    "reason": "--skip-answer-eval"
+    "reason": "answer layer is run on the primary store only; retrieval is the only difference between stores"
   }
 }

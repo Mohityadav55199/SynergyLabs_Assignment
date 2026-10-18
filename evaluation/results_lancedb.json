@@ -1033,14 +1033,1004 @@
     },
     "latency_ms": {
       "samples": 150,
-      "query_embedding_p50": 8.67,
-      "query_embedding_p95": 16.9,
-      "vector_search_p50": 9.92,
-      "vector_search_p95": 21.52
+      "query_embedding_p50": 37.08,
+      "query_embedding_p95": 67.6,
+      "vector_search_p50": 18.7,
+      "vector_search_p95": 25.01
     }
   },
   "answer_evaluation": {
-    "status": "NOT_RUN",
-    "reason": "--skip-answer-eval"
+    "status": "OK",
+    "generator_model": "qwen/qwen3.8-27b",
+    "judge_model": "openai/gpt-oss-120b",
+    "judge_calls": 24,
+    "judge_tokens": 24357,
+    "judge_unparseable": 0,
+    "answerable_total": 25,
+    "answerable_answered": 24,
+    "false_refusal_rate_on_answerable": 0.04,
+    "refusal_accuracy_on_unanswerable": 1.0,
+    "faithfulness_mean": 1.0,
+    "answer_relevance_mean": 1.0,
+    "correctness_vs_gold_mean": 0.9792,
+    "exact_match_mean": 0.0,
+    "token_f1_mean": 0.6577,
+    "mean_total_tokens_per_query": 537.6333,
+    "end_to_end_latency_ms": {
+      "p50": 407.85,
+      "p95": 1248.54
+    },
+    "per_case": [
+      {
+        "id": "q01",
+        "question": "What is HNSW and what recall accuracy does it provide?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "HNSW is a graph-based index structure that builds a multi-layer graph with sparse long-distance skip links in upper layers and dense local connections in the bottom layer [Chunk-1] [Chunk-2]. It provides state-of-the-art recall accuracy of greater than 98% [Chunk-1].",
+        "gold_answer": "Hierarchical Navigable Small World (HNSW) is a graph-based Approximate Nearest Neighbor index structure that provides state-of-the-art recall exceeding 98% with sub-millisecond query latency.",
+        "citations": [
+          "pdf_d6013c4103f6_c000_fcfd6d7b",
+          "pdf_d6013c4103f6_c001_2f2c713e"
+        ],
+        "tokens": {
+          "prompt_tokens": 462,
+          "completion_tokens": 63,
+          "total_tokens": 525
+        },
+        "latency_ms": {
+          "search": 50.16,
+          "generation": 1549.02,
+          "total": 1659.0
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.4,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "Both statements are directly supported by the retrieved chunks and fully answer the question, matching the gold answer."
+        }
+      },
+      {
+        "id": "q02",
+        "question": "How does HNSW graph routing work across layers?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "HNSW builds a multi-layer graph where upper layers contain sparse long-distance skip links for rapid routing, while the bottom layer contains dense local connections [Chunk-1].",
+        "gold_answer": "HNSW constructs a multi-layer graph where upper layers have sparse long-distance skip links for fast routing across the vector space, and the bottom layer contains dense local connections for precise neighbor discovery.",
+        "citations": [
+          "pdf_d6013c4103f6_c001_2f2c713e"
+        ],
+        "tokens": {
+          "prompt_tokens": 582,
+          "completion_tokens": 35,
+          "total_tokens": 617
+        },
+        "latency_ms": {
+          "search": 46.22,
+          "generation": 232.29,
+          "total": 355.54
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.7059,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 1,
+            "n_supported": 1
+          },
+          "rationale": "The answer restates the core mechanism of HNSW routing across layers, matching the gold answer and is fully supported by the provided context."
+        }
+      },
+      {
+        "id": "q03",
+        "question": "What is the memory overhead per vector for an HNSW index?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "HNSW graphs require holding both vectors and graph edges in memory, requiring roughly 1.5 to 2.0 KB per 1536-dimensional vector [Chunk-1].",
+        "gold_answer": "An HNSW index requires approximately 1.5 to 2.0 KB of memory (RAM) per 1536-dimensional vector to store raw vectors and graph connectivity edges.",
+        "citations": [
+          "pdf_d6013c4103f6_c001_2f2c713e"
+        ],
+        "tokens": {
+          "prompt_tokens": 572,
+          "completion_tokens": 40,
+          "total_tokens": 612
+        },
+        "latency_ms": {
+          "search": 48.81,
+          "generation": 236.77,
+          "total": 397.14
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.619,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "The answer provides the exact memory overhead per vector as stated in the retrieved context and directly addresses the question."
+        }
+      },
+      {
+        "id": "q04",
+        "question": "How does IVF-PQ achieve memory reduction compared to raw HNSW?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "IVF-PQ achieves memory reduction by partitioning the vector space into Voronoi cells and compressing vectors into compact byte codes, which reduces the memory footprint by up to 95% compared to raw HNSW [Chunk-1].",
+        "gold_answer": "IVF-PQ partitions the vector space into Voronoi cells and quantizes vectors into compact byte codes, reducing the memory footprint by up to 95% compared to raw HNSW.",
+        "citations": [
+          "pdf_d6013c4103f6_c002_0fd6a216"
+        ],
+        "tokens": {
+          "prompt_tokens": 600,
+          "completion_tokens": 51,
+          "total_tokens": 651
+        },
+        "latency_ms": {
+          "search": 18.43,
+          "generation": 563.61,
+          "total": 626.92
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.8,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "Both statements are directly supported by Chunk-1 and exactly match the gold answer, fully addressing the question."
+        }
+      },
+      {
+        "id": "q05",
+        "question": "What underlying columnar data format powers LanceDB?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "LanceDB is built on top of Lance, a modern columnar data format tailored for machine learning and multimodal data [Chunk-1].",
+        "gold_answer": "LanceDB is built on top of the Lance columnar data format, which is inspired by Apache Arrow and Parquet and tailored for machine learning and multimodal data.",
+        "citations": [
+          "pdf_d6013c4103f6_c003_b4c7d160"
+        ],
+        "tokens": {
+          "prompt_tokens": 604,
+          "completion_tokens": 30,
+          "total_tokens": 634
+        },
+        "latency_ms": {
+          "search": 45.77,
+          "generation": 234.02,
+          "total": 351.1
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.7727,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 1,
+            "n_supported": 1
+          },
+          "rationale": "The answer directly states the columnar format (Lance) that powers LanceDB, which matches the gold answer and is fully supported by the retrieved context."
+        }
+      },
+      {
+        "id": "q06",
+        "question": "Why does an idle LanceDB index incur zero compute cost?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "An idle LanceDB index incurs zero compute cost because it is fundamentally serverless and disk-native, meaning it does not require a background daemon or always-on pod [Chunk-1] [Chunk-3].",
+        "gold_answer": "LanceDB is serverless and disk-native with no background daemon or persistent pod requirement; because it operates directly against NVMe disk or cloud object storage, an idle index incurs zero compute cost.",
+        "citations": [
+          "pdf_d6013c4103f6_c005_c7587ea6",
+          "pdf_d6013c4103f6_c003_b4c7d160"
+        ],
+        "tokens": {
+          "prompt_tokens": 668,
+          "completion_tokens": 43,
+          "total_tokens": 711
+        },
+        "latency_ms": {
+          "search": 20.04,
+          "generation": 256.22,
+          "total": 305.16
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.6296,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 4,
+            "n_supported": 4
+          },
+          "rationale": "The answer directly addresses the question, providing the same factual explanation as the gold answer and all claims are backed by the retrieved context."
+        }
+      },
+      {
+        "id": "q07",
+        "question": "How does Qdrant implement payload filtering during vector search?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "Qdrant implements payload filtering by evaluating the filters during the HNSW graph traversal, a method known as single-stage filtered search [Chunk-1]. This approach avoids the issues associated with pre-filtering, which destroys graph connectivity, and post-filtering, which risks returning fewer than k items [Chunk-1].",
+        "gold_answer": "Qdrant executes single-stage filtered search where payload filters are evaluated directly during the HNSW graph traversal, avoiding the connectivity degradation of pre-filtering and the result truncation of post-filtering.",
+        "citations": [
+          "pdf_d6013c4103f6_c006_1c161867"
+        ],
+        "tokens": {
+          "prompt_tokens": 560,
+          "completion_tokens": 65,
+          "total_tokens": 625
+        },
+        "latency_ms": {
+          "search": 35.46,
+          "generation": 329.8,
+          "total": 597.63
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.4516,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 3,
+            "n_supported": 3
+          },
+          "rationale": "All statements are directly supported by the retrieved context and accurately reflect the gold answer, fully addressing the question about Qdrant's payload filtering implementation."
+        }
+      },
+      {
+        "id": "q08",
+        "question": "How much RAM do 10 million 384-dimensional vectors and their HNSW indices consume?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "At 10 million vectors, raw embeddings consume 15.36 GB, and HNSW indices expand the total memory footprint to over 25 GB [Chunk-3].",
+        "gold_answer": "At 10M vectors with 384 dimensions, raw embeddings consume 15.36 GB, and HNSW graph indices expand total memory consumption to over 25 GB.",
+        "citations": [
+          "pdf_d6013c4103f6_c008_9d54ccb3"
+        ],
+        "tokens": {
+          "prompt_tokens": 680,
+          "completion_tokens": 40,
+          "total_tokens": 720
+        },
+        "latency_ms": {
+          "search": 19.56,
+          "generation": 250.27,
+          "total": 317.59
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.7907,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "The answer directly provides the RAM usage figures for both the raw vectors and the HNSW indices, exactly matching the gold answer and supported by the retrieved context."
+        }
+      },
+      {
+        "id": "q09",
+        "question": "What is the recommended chunk size for technical and engineering documents?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "For technical and engineering documents, a chunk size of 400 to 600 characters is recommended to balance semantic focus and contextual completeness [Chunk-1].",
+        "gold_answer": "For technical and engineering documents, a chunk size of 400 to 600 characters is the empirical sweet spot between semantic focus and contextual completeness.",
+        "citations": [
+          "html_21a299ad5541_c003_1628efeb"
+        ],
+        "tokens": {
+          "prompt_tokens": 532,
+          "completion_tokens": 35,
+          "total_tokens": 567
+        },
+        "latency_ms": {
+          "search": 36.05,
+          "generation": 293.29,
+          "total": 379.23
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.8372,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 1,
+            "n_supported": 1
+          },
+          "rationale": "The answer restates the gold answer verbatim and is fully supported by Chunk-1, directly addressing the question."
+        }
+      },
+      {
+        "id": "q10",
+        "question": "What is the downside of using overly large chunk sizes in RAG?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": true,
+        "answer": "I do not have sufficient information in the provided context to answer this question.",
+        "gold_answer": "Large chunks dilute the vector representation because the embedding model must compress multiple disparate ideas into a single fixed-dimensional vector, leading to weaker semantic similarity matches.",
+        "citations": [],
+        "tokens": {
+          "prompt_tokens": 471,
+          "completion_tokens": 16,
+          "total_tokens": 487
+        },
+        "latency_ms": {
+          "search": 15.31,
+          "generation": 185.86,
+          "total": 232.91
+        }
+      },
+      {
+        "id": "q11",
+        "question": "Why is chunk overlap important when splitting documents?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "Chunk overlap is important because it prevents critical information from being split across chunk boundaries, which can otherwise cause both chunks to fail vector matching [Chunk-1]. By duplicating boundary tokens in adjacent chunks, it preserves semantic continuity without causing excessive vector index bloat [Chunk-1].",
+        "gold_answer": "Chunk overlap prevents critical information from being severed across chunk boundaries, ensuring semantic continuity across adjacent chunks without losing boundary tokens.",
+        "citations": [
+          "html_21a299ad5541_c004_50733c77"
+        ],
+        "tokens": {
+          "prompt_tokens": 515,
+          "completion_tokens": 57,
+          "total_tokens": 572
+        },
+        "latency_ms": {
+          "search": 16.02,
+          "generation": 334.89,
+          "total": 372.5
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.5397,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "Both statements are directly supported by the retrieved context and match the gold answer exactly, fully addressing the question."
+        }
+      },
+      {
+        "id": "q12",
+        "question": "How is idempotent re-ingestion guaranteed in the chunking pipeline?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "Idempotency is preserved by calculating SHA-256 hashes on the composite tuple of (doc_id, chunk_index, chunk_text), which ensures that repeated re-ingestion does not pollute the vector store with duplicate entries [Chunk-1].",
+        "gold_answer": "Idempotency is guaranteed by computing SHA-256 hashes on the composite tuple of (doc_id, chunk_index, chunk_text), ensuring repeated runs skip previously indexed vectors.",
+        "citations": [
+          "html_21a299ad5541_c005_87d16061"
+        ],
+        "tokens": {
+          "prompt_tokens": 475,
+          "completion_tokens": 52,
+          "total_tokens": 527
+        },
+        "latency_ms": {
+          "search": 17.59,
+          "generation": 608.13,
+          "total": 659.76
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.5417,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "Both statements are directly stated in Chunk-1 and fully answer the question, matching the gold answer word‑for‑word."
+        }
+      },
+      {
+        "id": "q13",
+        "question": "What exact phrase must be returned when retrieved chunks fail to meet the similarity threshold?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "The system must trigger the explicit fallback response: \"I do not have sufficient information in the provided context to answer this question.\" [Chunk-1]",
+        "gold_answer": "The system must reply with: 'I do not have sufficient information in the provided context to answer this question.'",
+        "citations": [
+          "html_21a299ad5541_c007_f80f7896"
+        ],
+        "tokens": {
+          "prompt_tokens": 626,
+          "completion_tokens": 31,
+          "total_tokens": 657
+        },
+        "latency_ms": {
+          "search": 81.53,
+          "generation": 330.45,
+          "total": 501.84
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.8333,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 1,
+            "n_supported": 1
+          },
+          "rationale": "The answer provides the exact required phrase, which is directly stated in the retrieved context and matches the gold answer."
+        }
+      },
+      {
+        "id": "q14",
+        "question": "What is the primary factor driving monthly invoices on fully managed vector databases?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "The primary factor driving monthly invoices on fully managed vector databases is the cost of allocated cluster compute and persistent RAM pods [Chunk-3]. In many enterprise settings, more than 98% of the monthly invoice pays for this idle compute and reserved RAM rather than active query execution [Chunk-2].",
+        "gold_answer": "Managed vector databases charge primarily for allocated cluster compute and reserved RAM pods; on lightly-queried indexes, over 98% of the bill pays for idle infrastructure.",
+        "citations": [
+          "md_2bd4cc3cda50_c000_fda37b56",
+          "md_2bd4cc3cda50_c001_34aceb9e"
+        ],
+        "tokens": {
+          "prompt_tokens": 626,
+          "completion_tokens": 61,
+          "total_tokens": 687
+        },
+        "latency_ms": {
+          "search": 17.78,
+          "generation": 413.2,
+          "total": 477.36
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.4776,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "Both statements are directly supported by the retrieved chunks and exactly match the information in the gold answer, fully addressing the question."
+        }
+      },
+      {
+        "id": "q15",
+        "question": "What is the estimated monthly cost to store 100K 384-dimensional vectors in LanceDB?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "The estimated monthly cost to store 100K 384-dimensional vectors in LanceDB is $0.00 if embedded on the host, or $0.01 if using S3-backed storage [Chunk-2].",
+        "gold_answer": "Storing 100K vectors in LanceDB costs $0.00 when embedded on the host or approximately $0.01 per month when backed by S3 storage, compared to $70/month on managed pods.",
+        "citations": [
+          "md_2bd4cc3cda50_c003_b2f6875e"
+        ],
+        "tokens": {
+          "prompt_tokens": 779,
+          "completion_tokens": 50,
+          "total_tokens": 829
+        },
+        "latency_ms": {
+          "search": 40.06,
+          "generation": 1471.94,
+          "total": 1593.61
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.4898,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "The answer directly provides the two cost figures for LanceDB as stated in the retrieved context and matches the gold answer exactly."
+        }
+      },
+      {
+        "id": "q16",
+        "question": "What is the monthly cost comparison for 10M vectors between managed pods and S3-backed LanceDB?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "For 10M vectors, managed pods cost $288.00 per month, while S3-backed LanceDB costs $0.35 per month [Chunk-4].",
+        "gold_answer": "For 10M vectors, managed pods cost approximately $288.00 per month, whereas S3-backed LanceDB costs roughly $0.35 per month, achieving a 99.3% cost reduction.",
+        "citations": [
+          "md_2bd4cc3cda50_c004_ca3e1096"
+        ],
+        "tokens": {
+          "prompt_tokens": 770,
+          "completion_tokens": 40,
+          "total_tokens": 810
+        },
+        "latency_ms": {
+          "search": 22.63,
+          "generation": 411.65,
+          "total": 502.81
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.7895,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "The answer directly provides the two cost figures asked for, and both figures are explicitly stated in the retrieved context, matching the gold answer exactly."
+        }
+      },
+      {
+        "id": "q17",
+        "question": "What storage price per gigabyte-month was assumed for AWS S3 Standard in the cost model?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "The cost model assumed a storage price of $0.023 per GB-month for AWS S3 Standard [Chunk-1].",
+        "gold_answer": "The cost model assumed AWS S3 Standard storage pricing of $0.023 per GB-month.",
+        "citations": [
+          "md_2bd4cc3cda50_c005_67ffcd17"
+        ],
+        "tokens": {
+          "prompt_tokens": 686,
+          "completion_tokens": 28,
+          "total_tokens": 714
+        },
+        "latency_ms": {
+          "search": 40.48,
+          "generation": 519.87,
+          "total": 826.48
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.88,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 1,
+            "n_supported": 1
+          },
+          "rationale": "The answer correctly states the storage price as $0.023/GB-month, which is directly supported by Chunk-1 and matches the gold answer."
+        }
+      },
+      {
+        "id": "q18",
+        "question": "What trade-off exists regarding concurrent writes in embedded vector stores?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "Embedded vector stores rely on file locks, which means high-throughput distributed write workloads with more than 100 concurrent writers require central coordination or a managed cluster [Chunk-1].",
+        "gold_answer": "Embedded stores rely on file locks, which creates write contention under heavy distributed concurrent write workloads exceeding 100 concurrent writers.",
+        "citations": [
+          "md_2bd4cc3cda50_c006_1cb170a5"
+        ],
+        "tokens": {
+          "prompt_tokens": 608,
+          "completion_tokens": 39,
+          "total_tokens": 647
+        },
+        "latency_ms": {
+          "search": 48.57,
+          "generation": 465.22,
+          "total": 589.41
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.5778,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "Both atomic statements are directly supported by the retrieved context and fully answer the question about the concurrent‑write trade‑off, matching the gold answer exactly."
+        }
+      },
+      {
+        "id": "q19",
+        "question": "When should an engineering team switch back from a low-cost embedded store to a managed vector DB?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "An engineering team should switch back to a managed vector database when facing high-throughput distributed write workloads with more than 100 concurrent writers, as embedded stores rely on file locks and require central coordination or a managed cluster in such scenarios [Chunk-3].",
+        "gold_answer": "A team should switch back to managed databases when query traffic exceeds 1,000 QPS with strict sub-5ms p99 SLAs, or when heavy distributed multi-node concurrent writes require centralized coordination.",
+        "citations": [
+          "md_2bd4cc3cda50_c006_1cb170a5"
+        ],
+        "tokens": {
+          "prompt_tokens": 602,
+          "completion_tokens": 54,
+          "total_tokens": 656
+        },
+        "latency_ms": {
+          "search": 16.22,
+          "generation": 290.65,
+          "total": 351.63
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.3939,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 0.5,
+            "n_claims": 1,
+            "n_supported": 1
+          },
+          "rationale": "The answer correctly cites the write‑contention condition from the retrieved context, but it omits the other key condition from the gold answer (query traffic >1,000 QPS with sub‑5 ms SLA), so it only partially matches the expected answer."
+        }
+      },
+      {
+        "id": "q20",
+        "question": "What language is Qdrant implemented in?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "Qdrant is implemented in Rust [Chunk-1].",
+        "gold_answer": "Qdrant is an open-source vector search engine written in Rust.",
+        "citations": [
+          "pdf_d6013c4103f6_c005_c7587ea6"
+        ],
+        "tokens": {
+          "prompt_tokens": 502,
+          "completion_tokens": 13,
+          "total_tokens": 515
+        },
+        "latency_ms": {
+          "search": 30.93,
+          "generation": 245.58,
+          "total": 330.4
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.5714,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 1,
+            "n_supported": 1
+          },
+          "rationale": "The answer directly states the language (Rust) which is exactly what the question asks, and this is supported by the retrieved context and matches the gold answer."
+        }
+      },
+      {
+        "id": "q21",
+        "question": "What was the stock price of Apple on January 1st, 1990?",
+        "is_answerable": false,
+        "generation_mode": "no_context",
+        "model_used": "",
+        "refused": true,
+        "answer": "I do not have sufficient information in the provided context to answer this question.",
+        "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
+        "citations": [],
+        "tokens": {
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "total_tokens": 0
+        },
+        "latency_ms": {
+          "search": 49.8,
+          "generation": 0.0,
+          "total": 110.81
+        }
+      },
+      {
+        "id": "q22",
+        "question": "How do you configure a Redis cluster with Sentinel failover in Kubernetes?",
+        "is_answerable": false,
+        "generation_mode": "no_context",
+        "model_used": "",
+        "refused": true,
+        "answer": "I do not have sufficient information in the provided context to answer this question.",
+        "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
+        "citations": [],
+        "tokens": {
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "total_tokens": 0
+        },
+        "latency_ms": {
+          "search": 19.39,
+          "generation": 0.0,
+          "total": 126.25
+        }
+      },
+      {
+        "id": "q23",
+        "question": "What are the primary symptoms and diagnostic treatments for Lyme disease?",
+        "is_answerable": false,
+        "generation_mode": "no_context",
+        "model_used": "",
+        "refused": true,
+        "answer": "I do not have sufficient information in the provided context to answer this question.",
+        "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
+        "citations": [],
+        "tokens": {
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "total_tokens": 0
+        },
+        "latency_ms": {
+          "search": 23.06,
+          "generation": 0.0,
+          "total": 59.94
+        }
+      },
+      {
+        "id": "q24",
+        "question": "Who won the FIFA World Cup in 2022 and what was the final score?",
+        "is_answerable": false,
+        "generation_mode": "no_context",
+        "model_used": "",
+        "refused": true,
+        "answer": "I do not have sufficient information in the provided context to answer this question.",
+        "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
+        "citations": [],
+        "tokens": {
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "total_tokens": 0
+        },
+        "latency_ms": {
+          "search": 22.59,
+          "generation": 0.0,
+          "total": 67.12
+        }
+      },
+      {
+        "id": "q25",
+        "question": "What value of the M parameter does FAISS use by default when building an HNSW index?",
+        "is_answerable": false,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": true,
+        "answer": "I do not have sufficient information in the provided context to answer this question.",
+        "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
+        "citations": [],
+        "tokens": {
+          "prompt_tokens": 384,
+          "completion_tokens": 16,
+          "total_tokens": 400
+        },
+        "latency_ms": {
+          "search": 16.65,
+          "generation": 632.0,
+          "total": 695.22
+        }
+      },
+      {
+        "id": "q26",
+        "question": "In what year was the term retrieval-augmented generation introduced?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "The term retrieval-augmented generation was introduced in 2020 [Chunk-1].",
+        "gold_answer": "The term retrieval-augmented generation was introduced in a 2020 paper.",
+        "citations": [
+          "html_0be4fe0c65f4_c005_0cecaa34"
+        ],
+        "tokens": {
+          "prompt_tokens": 586,
+          "completion_tokens": 21,
+          "total_tokens": 607
+        },
+        "latency_ms": {
+          "search": 12.94,
+          "generation": 191.45,
+          "total": 244.01
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.9333,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 1,
+            "n_supported": 1
+          },
+          "rationale": "The answer directly states the year the term was introduced, which matches the gold answer and is supported by Chunk-1. It fully addresses the question."
+        }
+      },
+      {
+        "id": "q27",
+        "question": "Does cosine similarity depend on the magnitudes of the vectors?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "No, cosine similarity does not depend on the magnitudes of the vectors, but only on their angle [Chunk-1] [Chunk-3].",
+        "gold_answer": "No. Cosine similarity does not depend on the magnitudes of the vectors, only on the angle between them.",
+        "citations": [
+          "html_4768d8ee1c2f_c001_50dad315",
+          "html_4768d8ee1c2f_c000_673c59f4"
+        ],
+        "tokens": {
+          "prompt_tokens": 549,
+          "completion_tokens": 31,
+          "total_tokens": 580
+        },
+        "latency_ms": {
+          "search": 84.14,
+          "generation": 286.68,
+          "total": 492.03
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.8667,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "The answer directly answers the question with two factual statements that are both explicitly supported by the retrieved context and match the gold answer."
+        }
+      },
+      {
+        "id": "q28",
+        "question": "What is 'prompt stuffing' in the context of RAG?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "In the context of RAG, \"prompt stuffing\" is a technique where additional relevant context is added to the user's input to guide the model's response [Chunk-1]. This approach provides the LLM with key information early in the prompt, encouraging it to prioritize the supplied data over its pre-existing training knowledge [Chunk-1].",
+        "gold_answer": "Prompt stuffing means adding relevant retrieved context to the user's input so the LLM prioritizes the supplied information over its pre-existing training knowledge.",
+        "citations": [
+          "html_0be4fe0c65f4_c008_6d6b913b"
+        ],
+        "tokens": {
+          "prompt_tokens": 645,
+          "completion_tokens": 69,
+          "total_tokens": 714
+        },
+        "latency_ms": {
+          "search": 48.31,
+          "generation": 377.67,
+          "total": 690.43
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.4839,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "The answer accurately defines prompt stuffing using the provided context and matches the gold answer, fully addressing the question."
+        }
+      },
+      {
+        "id": "q29",
+        "question": "Which techniques are commonly used for similarity search on high-dimensional vectors?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "Common techniques for similarity search on high-dimensional vectors include Hierarchical Navigable Small World (HNSW) graphs, Locality-sensitive hashing (LSH) and sketching, Product quantization (PQ), and Inverted files [Chunk-1].",
+        "gold_answer": "Common techniques are HNSW graphs, locality-sensitive hashing (LSH) and sketching, product quantization (PQ), and inverted files.",
+        "citations": [
+          "html_623cfe2b7012_c005_21732333"
+        ],
+        "tokens": {
+          "prompt_tokens": 484,
+          "completion_tokens": 52,
+          "total_tokens": 536
+        },
+        "latency_ms": {
+          "search": 23.9,
+          "generation": 463.47,
+          "total": 535.55
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.7143,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 4,
+            "n_supported": 4
+          },
+          "rationale": "The answer lists exactly the techniques mentioned in the retrieved context and the gold answer, fully addressing the question."
+        }
+      },
+      {
+        "id": "q30",
+        "question": "What is a vector database?",
+        "is_answerable": true,
+        "generation_mode": "llm",
+        "model_used": "qwen/qwen3.8-27b",
+        "refused": false,
+        "answer": "A vector database is a database that stores and retrieves embeddings of data in vector space [Chunk-1]. It typically implements approximate nearest neighbor algorithms to allow users to search for records semantically similar to a given input, rather than relying on exact matches [Chunk-1].",
+        "gold_answer": "A vector database (vector store or vector search engine) is a database that stores and retrieves embeddings of data in vector space, typically using approximate nearest neighbor algorithms so users can search for semantically similar records.",
+        "citations": [
+          "html_623cfe2b7012_c000_3ac509ad"
+        ],
+        "tokens": {
+          "prompt_tokens": 474,
+          "completion_tokens": 55,
+          "total_tokens": 529
+        },
+        "latency_ms": {
+          "search": 46.25,
+          "generation": 329.69,
+          "total": 418.31
+        },
+        "exact_match": 0.0,
+        "token_f1": 0.6849,
+        "judge": {
+          "scores": {
+            "faithfulness": 1.0,
+            "relevance": 1.0,
+            "correctness": 1.0,
+            "n_claims": 2,
+            "n_supported": 2
+          },
+          "rationale": "The answer accurately restates the definition of a vector database using only information present in the retrieved context, fully addressing the question and matching the gold answer."
+        }
+      }
+    ]
   }
 }

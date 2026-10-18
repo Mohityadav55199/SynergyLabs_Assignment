@@ -20,8 +20,8 @@
 
 | Store | search p50 | search p95 | query-embed p50 | query-embed p95 | samples |
 |---|---|---|---|---|---|
-| lancedb | 9.92 | 21.52 | 8.67 | 16.9 | 150 |
-| qdrant | 1.1 | 1.95 | 10.3 | 37.29 | 150 |
+| lancedb | 18.7 | 25.01 | 37.08 | 67.6 | 150 |
+| qdrant | 2.87 | 3.91 | 38.62 | 58.56 | 150 |
 
 ## Similarity gate
 
@@ -37,4 +37,19 @@
 
 ## Answer quality (primary store)
 
-**NOT RUN** - --skip-answer-eval
+| Metric | Value |
+|---|---|
+| generator_model | qwen/qwen3.8-27b |
+| judge_model | openai/gpt-oss-120b |
+| faithfulness_mean | 1.0 |
+| answer_relevance_mean | 1.0 |
+| correctness_vs_gold_mean | 0.9792 |
+| exact_match_mean | 0.0 |
+| token_f1_mean | 0.6577 |
+| false_refusal_rate_on_answerable | 0.04 |
+| refusal_accuracy_on_unanswerable | 1.0 |
+| mean_total_tokens_per_query | 537.6333 |
+| judge_calls | 24 |
+| judge_tokens | 24357 |
+| judge_unparseable | 0 |
+| end-to-end latency p50 / p95 (ms) | 407.85 / 1248.54 |
