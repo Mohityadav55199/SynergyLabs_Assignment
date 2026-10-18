@@ -182,6 +182,15 @@ for t_idx, text in zip(range(10, 16), design):
     set_cell(T[t_idx].rows[0].cells[0], text, size=10)
 
 # ---- 1.5 evidence ----
+from docx.shared import Inches
+shot = ROOT / "submission" / "screenshots" / "end_to_end_query.png"
+if shot.exists():
+    cell = T[16].rows[0].cells[0]
+    set_cell(cell, "Live deployment (https://synergylabs-lilac.vercel.app), query: 'What is HNSW and what recall accuracy does it provide?'. "
+                   "Shown: cited answer ([Chunk-1], [Chunk-2]), 800 ms retrieval, 1378.64 ms total, 525 tokens, model qwen/qwen3.8-27b, 3 chunks used; "
+                   "sidebar shows 6 documents / 100 chunks.", size=9)
+    cell.add_paragraph().add_run().add_picture(str(shot), width=Inches(6.2))
+
 set_cell(T[17].rows[0].cells[0], """$ python -m src.cli ingest --store lancedb      (first run, empty index)
 Total chunks generated: 100 | Newly inserted chunks: 100 | Duplicates skipped: 0
 $ python -m src.cli ingest --store lancedb      (second run, same corpus)
