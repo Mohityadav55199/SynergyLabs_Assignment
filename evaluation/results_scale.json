@@ -1,0 +1,15 @@
+{
+  "dim": 384,
+  "k": 4,
+  "queries": 100,
+  "note": "synthetic random unit vectors; speed/size only; laptop CPU, Windows 11; Qdrant local mode (brute-force numpy) was too slow to load at 20K+ vectors and is not measured at scale",
+  "lancedb_100000": {
+    "load_seconds": 3.4,
+    "flat_scan": {"p50_ms": 597.52, "p95_ms": 680.55},
+    "flat_scan_filtered": {"p50_ms": 720.87, "p95_ms": 819.81},
+    "disk_mb_flat": 153.8,
+    "ivf_pq_build_seconds": 124.9,
+    "ivf_pq": {"p50_ms": 27.95, "p95_ms": 40.72},
+    "disk_mb_with_index": 159.5
+  }
+}
