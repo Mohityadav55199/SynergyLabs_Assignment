@@ -1,259 +1,195 @@
-# Cost-Efficient RAG Application (Take-Home Assignment — Problem 1)
+# Cost-Efficient RAG Service (Take-Home, Problem 1)
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
-[![LanceDB](https://img.shields.io/badge/LanceDB-Embedded-orange.svg)](https://lancedb.com/)
-[![Qdrant](https://img.shields.io/badge/Qdrant-Embedded-red.svg)](https://qdrant.tech/)
-[![Groq](https://img.shields.io/badge/LLM-Groq%20API-black.svg)](https://groq.com/)
+A QA service over PDF / HTML / Markdown, backed by **LanceDB** (embedded, no always-on server), with **embedded Qdrant** benchmarked as the second store. Retrieval and answers are evaluated on a fixed 30-question set, and the monthly cost is compared with managed vector databases at 100K / 1M / 10M vectors.
 
-A production-grade, cost-efficient Retrieval-Augmented Generation (RAG) QA service built to replace expensive, always-on managed vector database pods. Backed by **LanceDB** (columnar Apache Arrow format) and benchmarked against **Qdrant (Embedded)**, this application proves that low-cost local and serverless vector stores provide equivalent retrieval quality at a fraction of 1% of the infrastructure cost.
+| | |
+|---|---|
+| Frontend (Vercel) | https://synergylabs-lilac.vercel.app/ |
+| Backend API (Render, free tier) | https://cost-efficient-rag-service.onrender.com (`/docs`, `/health`) |
+| Code | https://github.com/Mohityadav55199/SynergyLabs_Assignment |
+| Operating it | [HANDOVER.md](HANDOVER.md): ownership, deploy, access, runbook, known limitations |
 
----
+> Render's free tier sleeps after 15 min idle, so the first request can take 30-60 s (a GitHub Actions cron pings `/health` every 10 min to reduce this).
 
-## 🚀 Live Deployments & Interactive Demos
-
-| Resource | URL | Description |
-| :--- | :--- | :--- |
-| **Frontend Web App** | [https://synergylabs-lilac.vercel.app/](https://synergylabs-lilac.vercel.app/) | Interactive ChatGPT-style RAG Agent UI deployed on Vercel |
-| **Backend REST API** | [https://cost-efficient-rag-service.onrender.com](https://cost-efficient-rag-service.onrender.com) | FastAPI service running LanceDB + Qdrant on Render |
-| **Swagger API Docs** | [https://cost-efficient-rag-service.onrender.com/docs](https://cost-efficient-rag-service.onrender.com/docs) | Interactive OpenAPI documentation and test console |
-| **Health & Diagnostics** | [https://cost-efficient-rag-service.onrender.com/groq-debug](https://cost-efficient-rag-service.onrender.com/groq-debug) | Real-time key status, active LLM model, and vector store stats |
-
-> **Note on Render Free-Tier Cold Starts & Keep-Warm Strategy:**
-> Because the backend is deployed on Render's free tier, the container spins down after 15 minutes of inactivity ($0 idle cost, matching our thesis!). If idle, the first request takes ~30–45s to wake up. 
-> To keep the backend warm and responsive 24/7 without cost:
-> 1. **GitHub Actions Cron Workflow** ([`.github/workflows/keep-warm.yml`](.github/workflows/keep-warm.yml)): Automatically pings `/health` every 10 minutes.
-> 2. **External Cron Service Support**: Compatible with cron-job.org / UptimeRobot scheduled every 10–12 minutes.
-> 3. **Smart Frontend Cold-Start Detection**: Sticky live banner with elapsed seconds counter, background health polling, and 1-click retry cards for chat and uploads. Once awake, all subsequent queries respond in <1.8s.
-
----
-
-## 1. Architecture Overview
+## 1. Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Ingestion["1. Multi-Format Idempotent Ingestion Pipeline"]
-        Doc[Documents: PDF / HTML / Markdown] --> Parser[Document Parsers pypdf / bs4 / markdown]
-        Parser --> Chunk[Semantic Recursive Chunker: size=500, overlap=50]
-        Chunk --> Fingerprint[SHA-256 Fingerprinting: doc_id + chunk_idx + text]
-        Fingerprint --> Dedup{Exists in Store?}
-        Dedup -- Yes --> Skip[Skip Insert: 0 Duplicate Vectors]
-        Dedup -- No --> Embed[Local Embedder: BAAI/bge-small-en-v1.5 (384-dim)]
-        Embed --> Store[(Primary: LanceDB / Secondary: Qdrant Embedded)]
+    subgraph Ingest["Ingestion (idempotent)"]
+        D[PDF / HTML / MD] --> P[Parse: pypdf / BeautifulSoup / text]
+        P --> C["Chunk: recursive, size 500 / overlap 50 chars"]
+        C --> H["Fingerprint = SHA-256(doc_id, chunk_idx, text)"]
+        H --> X{hash already stored?}
+        X -- yes --> S[skip: no duplicate vector]
+        X -- no --> E["Embed: BAAI/bge-small-en-v1.5, 384-d (local ONNX)"]
+        E --> V[("LanceDB (primary) / Qdrant embedded<br/>vector + text + metadata: format, doc_id, filename, section")]
     end
-
-    subgraph Serving["2. HTTP API & CLI Interface"]
-        Client[HTTP Client / CLI] --> API[FastAPI /query Endpoint or CLI]
-        API --> Search[Top-k Vector Search + Metadata Filter]
-        Store --> Search
-        Search --> Threshold{Similarity >= 0.25?}
-        Threshold -- No --> Fallback["Fallback: 'I do not have sufficient information...'"]
-        Threshold -- Yes --> GroundPrompt[Grounded Prompt + Chunk ID Citations]
-        GroundPrompt --> LLM[Groq API: llama-3.3-70b-versatile]
-        LLM --> Response[Response + Citations + Per-Query Latency & Token Telemetry]
-    end
-
-    subgraph Evaluation["3. Evaluation & Benchmarking Harness"]
-        Suite[25-Question Test Suite: 20 Gold QA + 5 Adversarial Out-of-Corpus] --> EvalHarness[Evaluation Harness]
-        EvalHarness --> IRMetrics[Layer 1: IR Metrics Recall@k, HitRate, MRR, nDCG, Precision]
-        EvalHarness --> AnsMetrics[Layer 2: Answer Quality Faithfulness, Relevance, EM, F1]
-        EvalHarness --> LatencyMetrics[Layer 3: Performance p50/p95 Retrieval & Total Latency]
-        EvalHarness --> CostModel[Scale Cost Model: 100K, 1M, 10M Vectors]
+    subgraph Query["Query path"]
+        Q[POST /query or CLI] --> QE[Embed query]
+        QE --> R["Top-k cosine search + metadata filter"]
+        V --> R
+        R --> G{"best score >= SIMILARITY_THRESHOLD (0.68)?"}
+        G -- "no: NO RELEVANT CONTEXT" --> F["Fixed refusal, LLM never called, 0 tokens"]
+        G -- yes --> L["Grounded prompt (numbered chunks) -> Groq llama-3.3-70b, temp 0"]
+        L --> A["Answer + [Chunk-N] citations + latency / chunk count / token usage"]
+        L -. LLM down .-> X2["labelled extractive fallback (verbatim passage)"]
     end
 ```
 
----
+## 2. Store choice and why
 
-## 2. Store Selection & Justification
+**LanceDB** (primary). The brief's problem is that the managed bill scales with always-on pods. LanceDB is a library over files on disk/S3: no server process, no idle compute, columnar storage with metadata filters, scalar + IVF-PQ indexes, and an S3-backed option. The index is 1.5 KB/vector (384-d float32), so 10M vectors are ~25 GB on disk including text.
 
-### Primary Choice: LanceDB (Embedded Columnar)
-* **Zero-Idle Infrastructure Cost**: Unlike Pinecone or Weaviate which require persistent compute pods with reserved memory ($70–$288/month), LanceDB operates serverless directly over local disk or cloud object storage (S3/GCS).
-* **Apache Arrow Columnar Engine**: Delivers zero-copy data reads, vectorized SIMD distance computation, and fast multi-attribute metadata filtering without loading the entire dataset into memory.
-* **Lightly-Queried Economics**: If a knowledge base is queried only 500 times per day, an idle LanceDB index incurs **$0.00 in compute costs**.
+Considered and not chosen as primary: **pgvector** (needs a running Postgres, which is the always-on cost we are avoiding, though it is the right pick if Postgres already exists); **FAISS** (fast but no metadata filtering or persistence story; we would rebuild both); **ChromaDB** (fine, but a heavier dependency with less control over on-disk format); **sqlite-vec** (attractive and tiny, brute-force only, young); **Qdrant embedded** (benchmarked as the bonus second store, see below).
 
-### Secondary Benchmark: Qdrant (Embedded In-Process)
-* Benchmarked as a second store (satisfying the bonus requirement).
-* Implements modified in-process HNSW graph traversal with Rust memory-mapped files and single-stage payload filtering.
+**Qdrant embedded** (bonus). Same `BaseVectorStore` interface, same corpus, same questions. Note: `qdrant-client` *local mode* is a brute-force numpy scan, **not HNSW** (HNSW exists only in the Qdrant server), so it is not a fair stand-in for a Qdrant cluster at scale.
 
----
+## 3. Requirements map
 
-## 3. Core Requirements Implementation
+| # | Requirement | Where / how |
+|---|---|---|
+| 1 | PDF/HTML/MD ingestion, configurable chunking, idempotent | `src/ingestion/`. **Defaults: size 500 chars, overlap 50** (`DEFAULT_CHUNK_SIZE`, `DEFAULT_CHUNK_OVERLAP`, CLI `--chunk-size/--overlap`, API fields). Re-ingest skips every chunk whose SHA-256 is stored (proof in 6.2). An edited file replaces its old vectors. A corrupt/empty file is reported, not fatal to a batch. |
+| 2 | Embeddings recorded; vectors + metadata; metadata filter | `BAAI/bge-small-en-v1.5`, **384-d**, returned by `/health` and in every ingestion report. Metadata: `format`, `doc_id`, `filename`, `section`, hash, page info. Filter on any of `format|doc_id|filename|section` (whitelisted; values are escaped). |
+| 3 | Top-k (k parameter), grounded cited answer, no hallucination on no-context | `k` = `top_k` (1-20). Prompt forces `[Chunk-N]` citations; `citations` lists only chunks the model actually cited. Two layers of refusal: a similarity gate before the LLM, then an explicit refusal rule in the prompt. |
+| 4 | HTTP endpoint or CLI; env config; per-query logging | FastAPI (`/query`, `/ingest`, `/ingest/upload`, `/health`, `/stats`, `/llm-status`) and `python -m src.cli`. All config via env / `.env` (`.env.example`; no secrets in git). Each query logs latency (total/embed/search/generation), chunk count, token usage. |
 
-| Requirement | Implementation Details |
-| :--- | :--- |
-| **1. Multi-Format Ingestion** | Supports `.pdf` (`pypdf`), `.html` (`BeautifulSoup4`), and `.md` (`markdown`). Configurable `chunk_size` (default: 500 chars) and `chunk_overlap` (default: 50 chars). |
-| **Idempotent Re-Ingestion** | Computes deterministic SHA-256 fingerprint: `sha256(f"{doc_id}:{chunk_index}:{chunk_text}")`. Re-running ingestion skips all previously indexed vectors, guaranteeing **zero duplicate vectors**. |
-| **2. Embeddings & Dimensionality** | Powered by local ONNX `fastembed` running `BAAI/bge-small-en-v1.5` (384 dimensions, normalized). Model name and dimensionality are recorded and stored with all chunks. |
-| **Metadata Filtering** | Vector stores support filtering by document format (`format = 'pdf'`), `doc_id`, or `section`. |
-| **3. Grounded Generation & Anti-Hallucination** | System prompt forces strict citation grounding (`[Chunk-1]`, `[Chunk-2]`). If similarity is below `0.25` or no relevant context exists, the model strictly outputs: *"I do not have sufficient information in the provided context to answer this question."* |
-| **4. HTTP Service & CLI** | Exposes FastAPI endpoints (`/ingest`, `/query`, `/health`, `/stats`) and CLI (`python -m src.cli`). All secrets configured via `.env`. Logs latency (retrieval + generation), chunk count, and token usage per query. |
+## 4. Run it (about 5 minutes)
 
----
-
-## 4. Evaluation Results (25-Question Benchmark Suite)
-
-The evaluation was executed on a fixed 25-question test suite (`evaluation/dataset.json`) consisting of:
-* **20 Answerable Domain Questions**: Targeting specific sections in PDF, HTML, and Markdown files with gold answers and expected keywords.
-* **5 Unanswerable / Adversarial Questions**: Out-of-corpus queries to test anti-hallucination and fallback guardrails.
-
-### Results Comparison: LanceDB vs. Qdrant Embedded
-
-| Metric Layer | Metric | LanceDB (Primary) | Qdrant (Secondary Benchmark) | Target / Baseline |
-| :--- | :--- | :--- | :--- | :--- |
-| **Retrieval (IR)** | **Recall@4** | **100.0%** | **100.0%** | $\ge 90\%$ |
-| | **Hit Rate@4** | **100.0%** | **100.0%** | $\ge 90\%$ |
-| | **MRR (Mean Reciprocal Rank)** | **0.8833** | **0.8833** | $\ge 0.80$ |
-| | **nDCG@4** | **1.6362** | **1.6362** | Higher is better |
-| | **Context Precision** | **0.8528** | **0.8528** | $\ge 0.80$ |
-| **Latency** | **p50 Retrieval Latency** | **90.53 ms** | **64.09 ms** | $< 150\text{ ms}$ |
-| | **p95 Retrieval Latency** | **203.58 ms** | **107.10 ms** | $< 300\text{ ms}$ |
-| | **p50 Total End-to-End Latency** | **93.50 ms** | **68.20 ms** | $< 350\text{ ms}$ |
-| **Answer Quality** | **Faithfulness / Groundedness** | **0.6000** | **0.6000** | Grounded in context |
-| | **Answer Relevance** | **0.4820** | **0.4820** | Directly addresses prompt |
-
-*Full evaluation outputs are saved in `evaluation/results_lancedb.json` and `evaluation/results_qdrant.json`.*
-
----
-
-## 5. Cost Analysis across Scale (100K / 1M / 10M Vectors)
-
-Detailed cost comparison showing the monthly infrastructure bill across different vector scales for 384-dimensional embeddings:
-
-| Vector Scale | Data Volume (Raw) | Managed Pods (Pinecone / Qdrant Cloud) | LanceDB on NVMe (Local / EBS) | LanceDB on AWS S3 (Serverless) | Monthly Cost Reduction |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **100K Vectors** | 153.6 MB | **$70.00 / month** (1x Starter Pod) | **$0.00 / month** (Co-located host) | **$0.01 / month** (S3 Standard) | **~100% savings** |
-| **1M Vectors** | 1.54 GB | **$96.00 / month** (1x 4GB RAM Pod) | **$0.16 / month** (2GB gp3 volume) | **$0.04 / month** (S3 Standard) | **99.8% savings** |
-| **10M Vectors** | 15.36 GB | **$288.00 / month** (2x 16GB RAM Pods) | **$2.40 / month** (30GB gp3 volume) | **$0.39 / month** (S3 Standard) | **99.3% savings** |
-
-### Assumptions Stated:
-1. **Dimensions**: 384 dimensions $\times$ 4 bytes (float32) = 1,536 bytes/vector.
-2. **Managed Baseline**: Minimum pod pricing for Pinecone Standard ($0.096/hr) or Qdrant Cloud standard clusters.
-3. **Storage Pricing**: AWS EBS gp3 storage at $0.08/GB-month; AWS S3 Standard at $0.023/GB-month.
-4. **Compute**: Vector store runs embedded in-process on existing FastAPI worker with negligible incremental CPU cost.
-
-*Read the full quantitative model in [`evaluation/cost_analysis.md`](file:///c:/Projects/SynergyLabs_Assignment/evaluation/cost_analysis.md).*
-
----
-
-## 6. Discussion: Technical Analysis & Trade-Offs
-
-### A. Was Retrieval or Generation the Weak Link?
-* **Retrieval Performance**: Retrieval achieved **100% Recall@4** and an **MRR of 0.8833** across all answerable questions. Recursive character chunking (500-char size with 50-char overlap) combined with `bge-small-en-v1.5` embeddings reliably placed the ground-truth chunk in the top 1 or 2 search positions.
-* **Generation Dynamics**: Generation is the more sensitive link. When the LLM is given retrieved context, prompt adherence depends heavily on explicit citation formatting (`[Chunk-X]`) and temperature settings. Without strict zero-temperature constraints, LLMs occasionally drift into conversational paraphrasing rather than strict factual grounding. 
-* **Conclusion**: **Generation is the weaker link** in this RAG system. While vector retrieval is deterministic and achieves near-perfect recall with sub-100ms latency, generation requires ongoing prompt guardrails to guarantee strict citation formatting and avoid subtle extrapolations.
-
-### B. When Would You Switch Back to a Managed Vector Database?
-While LanceDB and Qdrant Embedded provide >99% cost reductions for low-to-medium throughput, we would switch back to a managed vector DB under three specific conditions:
-1. **Ultra-High Query Concurrency (>1,000 QPS)**: When query volume reaches thousands of requests per second with strict sub-5ms p99 SLAs, in-memory HNSW clusters distributed across dedicated nodes outperform disk scans.
-2. **Distributed Concurrent Write Workloads**: Embedded vector stores rely on local file locks. If dozens of independent microservices are writing simultaneously, distributed write contention occurs. Managed vector stores provide centralized transaction logs and distributed ingestion pipelines.
-3. **Multi-Region Cross-Cluster Replication**: When enterprise compliance requires active-active multi-region replication and automated failover across data centers, managed database clusters handle partition tolerance out of the box.
-
----
-
-## 7. Quickstart Guide
-
-### 1. Installation
 ```bash
-# Clone the repository
-git clone https://github.com/Mohityadav55199/SynergyLabs_Assignment.git
-cd SynergyLabs_Assignment
+git clone https://github.com/Mohityadav55199/SynergyLabs_Assignment.git && cd SynergyLabs_Assignment
+python -m venv venv && source venv/bin/activate        # Windows: .\venv\Scripts\activate
+pip install -r requirements-dev.txt                    # Python 3.11+ (tested on 3.14 / Windows 11)
+cp .env.example .env                                   # then set GROQ_API_KEY (free key: console.groq.com/keys)
 
-# Create virtual environment and install dependencies
-python -m venv venv
-.\venv\Scripts\activate
-pip install -r requirements.txt
+python -m src.cli ingest --store lancedb               # data/corpus -> index; run twice: 2nd run inserts 0
+python -m src.cli ingest --store qdrant                # optional second store
+python -m src.cli query "What is the memory overhead per vector for an HNSW index?" --k 4
+python -m src.cli query "What is the chunk overlap default?" --filter format=html
+python -m src.cli serve                                # http://localhost:8000/docs
+python -m pytest tests                                 # 53 tests
+python -m evaluation.harness                           # all three evaluation layers
 ```
 
-### 2. Environment Configuration
-Copy the template and set your Groq API key:
 ```bash
-cp .env.example .env
-# Edit .env and set:
-# GROQ_API_KEY=your_actual_groq_api_key
+curl -s localhost:8000/query -H 'content-type: application/json' \
+  -d '{"query":"What is HNSW and what recall does it provide?","top_k":4,"metadata_filter":{"format":"pdf"}}'
 ```
+Response (abridged): `answer`, `citations[{chunk_id, filename, section, score}]`, `retrieved_chunks_count`, `embedding_latency_ms`, `retrieval_latency_ms`, `generation_latency_ms`, `token_usage`, `generation_mode` (`llm` | `no_context` | `extractive_fallback`), `top_score`.
 
-### 3. Generate Corpus & Ingest
-```bash
-# Generate sample multi-format corpus (PDF, HTML, MD)
-python scripts/generate_corpus.py
+Without a Groq key the service still starts; answers degrade to a clearly labelled verbatim passage (`extractive_fallback`), and the harness records the answer layer as `NOT_RUN` instead of scoring it.
 
-# Ingest into LanceDB (primary store)
-python -m src.cli ingest --store lancedb
+## 5. Corpus and evaluation set
 
-# Ingest into Qdrant Embedded (secondary benchmark)
-python -m src.cli ingest --store qdrant
-```
+* **Corpus (6 documents, 100 chunks at 500/50):** 3 documents written for this project (`vector_db_architecture.pdf`, `rag_chunking_guide.html`, `low_cost_indexing_strategies.md`) plus 3 real Wikipedia HTML pages used as distractors and as a messy-HTML test (*Retrieval-augmented generation*, *Vector database*, *Cosine similarity*; CC BY-SA 4.0, fetched 2026-10-18). `scripts/generate_corpus.py` documents how the first three were produced.
+* **30 fixed questions** (`evaluation/dataset.json`): 25 answerable (20 on the project documents, 5 on the Wikipedia pages), 5 unanswerable (4 off-domain, 1 near-domain: "default M for FAISS HNSW", a topic the corpus touches but does not answer).
+* **What counts as a relevant chunk.** Each answerable question has an `evidence` string (a verbatim answer-bearing phrase). A chunk is relevant iff it is from the target file and contains that phrase (whitespace/case-insensitive). Labels are computed over the *whole corpus* with the same parser and chunker as ingestion, so Recall@k has a real denominator (all relevant chunks, 1-2 per question), and nDCG uses the matching ideal ranking (always <= 1).
 
-### 4. Query via CLI
-```bash
-# Query LanceDB with citation grounding
-python -m src.cli query "What is HNSW and what recall accuracy does it provide?" --store lancedb --k 4
+## 6. Results
 
-# Query with metadata filter
-python -m src.cli query "What is the memory footprint difference between HNSW and IVF-PQ?" --filter format=pdf
-```
+Reproduce: `python -m evaluation.harness` (writes `evaluation/results_<store>.json` and `results_summary.md`).
 
-### 5. Run the Evaluation Suite
-```bash
-python evaluation/harness.py
-```
+### 6.1 Retrieval (k = 4, 25 answerable questions, unfiltered search)
 
-### 6. Launch FastAPI HTTP Service
-```bash
-python -m src.cli serve --host 0.0.0.0 --port 8000
-# OpenAPI Docs available at: http://localhost:8000/docs
-```
+| Metric | LanceDB | Qdrant (embedded) | How computed |
+|---|---|---|---|
+| Hit Rate@4 | **0.92** | 0.92 | any relevant chunk in top 4 |
+| Recall@4 | **0.88** | 0.88 | relevant retrieved / all relevant in corpus |
+| MRR | **0.797** | 0.797 | 1 / rank of first relevant chunk |
+| nDCG@4 | **0.806** | 0.806 | binary gain, ideal = all relevant chunks first |
+| Context precision | **0.797** | 0.797 | rank-aware (RAGAS definition) |
+| Precision@4 | 0.24 | 0.24 | low by construction: 1-2 relevant chunks per question |
 
----
+With the dataset's `format` metadata filter applied: Hit Rate 0.92, MRR 0.82, nDCG 0.822. The two stores return identical rankings: both do exact cosine search, so at this scale the choice affects cost and latency, not quality. **Failures:** q10 ("downside of overly large chunk sizes") and q19 ("when to switch back to managed"): generic RAG/vector vocabulary pulled in Wikipedia and heading chunks; for q19 the relevant chunk is the one *after* the section-3 heading chunk that ranked 3rd. Hit Rate 0.92 = 23/25.
 
-## 8. Repository Structure
+Not claimed: these are 25 questions on a small corpus; one question is 4 points. Labels come from one evidence phrase per question, not human annotation of every chunk.
+
+### 6.2 Idempotent re-ingest (measured)
 
 ```
-SynergyLabs_Assignment/
-├── .env.example              # Environment variables template
-├── .gitignore                # Git ignore rules for venv, secrets, and data
-├── README.md                 # Complete documentation & discussion
-├── requirements.txt          # Python dependencies
-├── data/
-│   ├── corpus/               # Document corpus (PDF, HTML, MD)
-│   ├── lancedb/              # LanceDB columnar storage directory
-│   └── qdrant/               # Qdrant Embedded storage directory
-├── evaluation/
-│   ├── dataset.json          # 25-question test suite (20 QA + 5 adversarial)
-│   ├── harness.py            # Evaluation engine for IR, Answer, and Latency metrics
-│   ├── results_lancedb.json  # LanceDB benchmark metrics
-│   ├── results_qdrant.json   # Qdrant benchmark metrics
-│   └── cost_analysis.md      # Detailed 100K / 1M / 10M vector cost breakdown
-├── scripts/
-│   └── generate_corpus.py    # Generates multi-format sample documents
-└── src/
-    ├── config.py             # Pydantic Settings configuration
-    ├── cli.py                # Command-line interface
-    ├── api/
-    │   └── main.py           # FastAPI service (/ingest, /query, /health, /stats)
-    ├── embeddings/
-    │   └── embedder.py       # FastEmbed local embedding engine (384-dim)
-    ├── ingestion/
-    │   ├── parsers.py        # PDF, HTML, Markdown parsers
-    │   ├── chunker.py        # Recursive text chunker with SHA-256 fingerprinting
-    │   └── pipeline.py       # Idempotent ingestion pipeline
-    ├── vector_stores/
-    │   ├── base.py           # Abstract BaseVectorStore interface
-    │   ├── lance_store.py    # LanceDB columnar implementation
-    │   └── qdrant_store.py   # Qdrant Embedded implementation
-    └── generator/
-        └── llm.py            # Grounded Groq generation with citations
+$ python -m src.cli ingest --store lancedb   -> Total chunks generated: 100 | Newly inserted: 100 | Duplicates skipped: 0
+$ python -m src.cli ingest --store lancedb   -> Total chunks generated: 100 | Newly inserted:   0 | Duplicates skipped: 100
+$ python -m src.cli stats  --store lancedb   -> total_chunks: 100
 ```
+Also covered by `tests/test_stores.py` and `tests/test_api.py` for both stores.
 
----
+### 6.3 Chunk size / overlap (retrieval only; `python -m evaluation.chunking_ablation`)
 
-## 9. Evaluation Rubric Compliance Matrix (100 / 100 Pts)
+| size / overlap | chunks | Hit@4 | Recall@4 | MRR | nDCG@4 |
+|---|---|---|---|---|---|
+| 200 / 20 | 201 | 0.88 | 0.86 | 0.723 | 0.755 |
+| 350 / 35 | 141 | 0.92 | 0.90 | 0.780 | 0.809 |
+| 500 / 0 | 97 | 0.88 | 0.86 | 0.753 | 0.776 |
+| **500 / 50 (default)** | 100 | 0.92 | 0.88 | 0.797 | 0.806 |
+| 500 / 100 | 108 | 0.92 | 0.86 | 0.810 | 0.799 |
+| 800 / 80 | 62 | 0.92 | 0.90 | 0.823 | 0.833 |
+| 1200 / 120 | 42 | 1.00 | 0.98 | 0.917 | 0.922 |
 
-| Evaluation Area | Max Pts | Assessment Criteria | Project Implementation & Proof Points |
-| :--- | :---: | :--- | :--- |
-| **Correctness & Ingestion** | **20** | Multi-format ingestion; idempotent; sensible chunking; no duplicate vectors. | • Ingests PDF (`pypdf`), HTML (`BeautifulSoup`), Markdown (`markdown`).<br>• Recursive character chunking (500 chars, 50 overlap).<br>• SHA-256 fingerprinting guarantees 0 duplicate vectors on re-ingestion. |
-| **Retrieval Evaluation** | **20** | Real IR metrics computed correctly across a fixed test set. | • 25-question test suite (`evaluation/dataset.json`).<br>• Computes **Recall@4 (100%)**, **Hit Rate (100%)**, **MRR (0.8833)**, **nDCG@4 (1.6362)**, and **Context Precision (0.8528)**.<br>• Full metrics in `evaluation/results_lancedb.json` and `evaluation/results_qdrant.json`. |
-| **Answer Evaluation** | **20** | Faithfulness and answer relevance measured, not asserted; EM/F1 on gold answers. | • LLM-as-judge evaluation implemented in `evaluation/harness.py`.<br>• Evaluates Faithfulness (0.6000), Relevance (0.4820), Exact Match, and Token F1.<br>• Fallback guardrail tested against 5 adversarial out-of-corpus queries. |
-| **Cost Analysis** | **20** | Credible, assumption-stated comparison across scale (100K, 1M, 10M); trade-offs named. | • Full quantitative breakdown in `evaluation/cost_analysis.md` and Section 5 of README.<br>• Direct savings: 99.3% to 100% vs managed pods (Pinecone / Qdrant Cloud).<br>• Explicitly documents write concurrency, first-query cold start, and latency trade-offs. |
-| **Engineering & Clarity** | **20** | Modular architecture, config hygiene (no secrets), README discussion, git history. | • Clean OOP design with `BaseVectorStore` abstractions.<br>• Strict Pydantic settings via `.env` (no hardcoded keys).<br>• Full Discussion answering both required questions in Section 6.<br>• Live deployments on Vercel + Render with cold-start detection. |
-| **BONUS** | **+** | Benchmark a second store. | • Full secondary benchmark implemented for **Qdrant (Embedded In-Process)** alongside primary **LanceDB**. |
+Small chunks (200) and no overlap (500/0) degrade retrieval. **Larger chunks score *higher* here, and I did not keep them as the default** because (a) with relevance defined as "chunk contains the evidence phrase", bigger chunks are more likely to contain it, (b) k = 4 chunks of 1,200 characters is ~4x the prompt tokens and more room for off-topic text for the generator, and (c) on a 6-document corpus there are few distractors. Chunk size should be re-tuned on the client's real corpus with the answer layer in the loop; the default 500/50 is a middle-of-the-road choice, not a tuned optimum.
+
+### 6.4 Answer quality (LLM-as-judge + gold)
+
+Judge: `openai/gpt-oss-120b` (different family from the Llama generator, to limit self-enhancement bias), temperature 0. Faithfulness is claim-level (supported claims / total claims, judged against the retrieved context only); answer relevance and correctness-vs-gold are 1-5 rubric scores rescaled to 0-1; EM and token-F1 vs the gold answers. Every judge prompt and raw response is logged to `evaluation/judge_log.jsonl`. Refusal accuracy on the 5 unanswerable questions and false-refusal rate on the 25 answerable ones are reported separately.
+
+**STATUS: PENDING.** The committed result files from an earlier version of this repo were produced with no LLM key (the "answers" were placeholder strings) and are discarded; nothing in this README is simulated. Run `python -m evaluation.harness` with `GROQ_API_KEY` set; `evaluation/results_summary.md` then contains the table and this section gets filled from it.
+
+### 6.5 Latency
+
+Warm, 30 questions x 5 repeats = 150 samples, query embedding timed separately from vector search; laptop CPU (Windows 11).
+
+| Setting | p50 | p95 | Notes |
+|---|---|---|---|
+| Query embedding (ONNX, CPU) | 8.7 ms | 16.9 ms | same for both stores |
+| Vector search, 100-chunk corpus: LanceDB | 9.9 ms | 21.5 ms | k=4 |
+| Vector search, 100-chunk corpus: Qdrant local | 1.1 ms | 2.0 ms | in-memory numpy at this size |
+| **100,000 vectors, LanceDB flat scan** | **598 ms** | 681 ms | synthetic, `evaluation/results_scale.json` |
+| 100,000 vectors, flat scan + `format` filter | 721 ms | 820 ms | |
+| **100,000 vectors, LanceDB IVF_PQ (nprobes 20)** | **28 ms** | 41 ms | index build 125 s, +6 MB disk |
+| 1,000,000 vectors | not measured | | building an IVF_PQ index on 1M x 384 on this laptop took longer than the time I allowed; the 100K result is the scale evidence |
+
+Takeaways: the 100-chunk numbers say nothing about scale; at 100K vectors an unindexed LanceDB scan is already too slow on a laptop, and **an ANN index (IVF_PQ) is required past ~50K vectors**. The scale benchmark uses random vectors, so it measures speed and size only, not recall; Qdrant's local mode was too slow to load at 20K+ vectors and is not measured at scale. End-to-end latency including the LLM is reported by the harness once the answer layer runs.
+
+### 6.6 Similarity gate
+
+Top-1 cosine score: answerable questions >= 0.726, unanswerable <= 0.713 (the near-domain FAISS question). `SIMILARITY_THRESHOLD = 0.68` passes 25/25 answerable and blocks 4/5 unanswerable before any LLM call; the 5th relies on the model's refusal rule. The threshold was chosen on these same questions, so it is optimistic; it is an env var because it must be re-tuned per corpus/embedding model.
+
+## 7. Cost comparison (monthly, USD)
+
+Full model with sources: [evaluation/cost_analysis.md](evaluation/cost_analysis.md) (regenerate with `python -m evaluation.cost_model`). Prices retrieved 2026-10-18.
+
+| Vectors | Pinecone Serverless (Standard) | Qdrant Cloud | **LanceDB, marginal on an existing host** | LanceDB, S3 storage only | **LanceDB, dedicated VM + EBS** |
+|---|---|---|---|---|---|
+| 100K | $50.00 | $0 (free 1 GB tier) | **$0.04** | $0.01 | **$24.57** |
+| 1M | $50.00 | not published | **$0.40** | $0.08 | **$49.46** |
+| 10M | $50.00 | not published | **$3.96** | $0.76 | **$53.02** |
+
+**Assumptions:** 384-d float32 plus ~1 KB chunk text/metadata = 2.5 KB/vector; x1.3 index overhead; ~15,000 queries/month (~500/day); Pinecone Standard $50/month minimum, $0.33/GB-month storage, $16-18 per million read units, $4-4.5 per million write units (pinecone.io/pricing); EC2 t4g.medium/large $24.53/$49.06 (third-party aggregator, verify); EBS gp3 $0.08 and S3 $0.023 per GB-month; embedding is local and free; LLM generation cost is identical on both sides and excluded.
+
+**Read it honestly.** (1) Against Pinecone Serverless the Standard minimum makes the managed cost a flat $50, so the saving is real but **not "99%"**; an earlier draft of this repo used $70/$96/$288 "pod" baselines I could not trace to a price list, and they are removed. (2) The big saving exists only if the index shares a host you already pay for. If you must run a VM just for it, 10M vectors cost about the same as Pinecone's minimum. (3) Qdrant Cloud publishes no rate card, so only its free tier is modelled. (4) Excluded and real: engineer time for ops, backups, HA.
+
+**Trade-offs accepted:** single node and no replication; one writer at a time (file lock); QPS and p99 ceiling (see 6.5); you own patching/monitoring; local-mode Qdrant is brute force.
+
+## 8. Discussion
+
+**When would I switch back to a managed vector DB?**
+1. Sustained concurrency: when traffic needs many QPS with p99 targets in the low milliseconds, a replicated in-memory ANN service wins; an embedded store sits in one process on one disk.
+2. Multiple writers or services writing to one index: embedded stores serialise on a file lock, so I'd move to a server (managed, or self-hosted Qdrant/pgvector).
+3. Availability requirements: single node with no replicas fails whole; if the client needs multi-AZ failover or a contractual SLA, buy it rather than build it.
+4. If the index is small (under ~1M vectors) and the team has no one to own ops, Pinecone's $50 floor (or Qdrant's free tier) is cheaper than the engineering time of self-hosting. Cost alone does not justify self-hosting at this scale.
+
+**Was retrieval or generation the weak link?** On the evidence I have so far, **retrieval has measurable weaknesses, and I cannot yet say anything about generation**, because the answer layer is PENDING a key (6.4). What the retrieval data shows: 2 of 25 questions miss the top 4 entirely, MRR is 0.80 so the right chunk is often not first, and the near-domain question scores above the similarity threshold, so the gate cannot separate it from real questions. Weak points are chunking (a heading stranded from its text, a fact split across two chunks) and a small general-purpose embedding model confusing generic vocabulary. I will complete this paragraph from the judge's faithfulness / relevance / refusal numbers once they exist, rather than assert a conclusion first.
+
+## 9. Known limitations
+
+See [HANDOVER.md](HANDOVER.md) section 7. In short: small corpus and question set (wide error bars); partly self-authored documents; threshold tuned on the evaluation set; scale latency measured on synthetic vectors on a laptop; no HA; Render free tier sleeps and has ephemeral disk (uploads are lost on restart); local Qdrant is brute force; no OCR for scanned PDFs; `/query` is unauthenticated, write endpoints are open unless `ADMIN_TOKEN` is set.
+
+## 10. Repository layout
+
+```
+src/ api/main.py  cli.py  config.py | ingestion/{parsers,chunker,pipeline}.py | embeddings/embedder.py
+     vector_stores/{base,lance_store,qdrant_store}.py | generator/llm.py
+evaluation/ dataset.json  ground_truth.py  ir_metrics.py  judge.py  harness.py
+            chunking_ablation.py  scale_benchmark.py  cost_model.py
+            results_*.json  results_summary.md  cost_analysis.md
+tests/      chunker, stores (both backends), IR metrics, judge parsing, generator, API   (53 tests)
+public/     static chat UI (Vercel)      render.yaml  Dockerfile  .github/workflows/keep-warm.yml
+```
