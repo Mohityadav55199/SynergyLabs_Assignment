@@ -201,5 +201,9 @@ set_cell(T[20].rows[0].cells[0],
          "The reflection boxes in 1.5 marked as my own words are written by me; I checked the numbers in the README against evaluation/results_*.json. "
          "[Candidate: edit this paragraph so it states exactly what you did yourself.]", size=10)
 
-d.save(OUT)
+try:
+    d.save(OUT)
+except PermissionError:  # the target is open in Word
+    OUT = OUT.with_name("Submission_Problem1_new.docx")
+    d.save(OUT)
 print("wrote", OUT, "| answer layer:", ans["status"])
