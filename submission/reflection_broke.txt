@@ -1,0 +1,6 @@
+• The problem: the live chat stopped generating normal answers and started returning an "LLM unavailable" error with zero tokens.
+• First question: was the fault in the retrieval pipeline or in the LLM itself?
+• Diagnosis: we checked the /llm-status endpoint, which showed that llama-3.3-70b-versatile was no longer available for our Groq API key.
+• Conclusion: that pointed to the model configuration as the problem, not the retrieval logic.
+• Fix: updated the model configuration and added a fallback model, so the application can recover if the primary model becomes unavailable or rate-limited.
+• Improvement: add a health check and alerting to detect model failures earlier.
