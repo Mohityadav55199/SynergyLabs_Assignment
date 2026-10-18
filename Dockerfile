@@ -15,10 +15,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code and scripts
 COPY . .
 
-# Pre-generate corpus and pre-index into LanceDB
-RUN python scripts/generate_corpus.py && python -m src.cli ingest --store lancedb
+# Pre-index the committed corpus into both stores (embedding model is downloaded and cached at build time)
+RUN python -m src.cli ingest --store lancedb && python -m src.cli ingest --store qdrant
 
 EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s CMD curl -fs http://localhost:${PORT:-8000}/health || exit 1
 
 ENV HOST=0.0.0.0
 ENV PORT=8000
