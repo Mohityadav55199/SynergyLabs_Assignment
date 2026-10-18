@@ -19,7 +19,7 @@ services:
       - key: SIMILARITY_THRESHOLD
         value: "0.68"
       - key: GROQ_MODEL
-        value: llama-3.3-70b-versatile
+        value: qwen/qwen3.8-27b
       - key: DEFAULT_VECTOR_STORE
         value: lancedb
       - key: EMBEDDING_MODEL

@@ -64,3 +64,35 @@ def test_blank_query_rejected(monkeypatch):
     import pytest
     with pytest.raises(ValueError):
         make_service(monkeypatch, 0.9).query("   ")
+
+
+def test_unavailable_model_falls_back_to_an_available_one(monkeypatch):
+    class NotFoundError(Exception):
+        pass
+
+    calls = []
+
+    class Msg:
+        content = "Fact [Chunk-1]."
+
+    class Resp:
+        choices = [type("C", (), {"message": Msg()})()]
+        usage = type("U", (), {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2})()
+
+    class Completions:
+        def create(self, **kw):
+            calls.append(kw["model"])
+            if kw["model"] == "retired-model":
+                raise NotFoundError("model not found")
+            return Resp()
+
+    client = type("G", (), {
+        "chat": type("Ch", (), {"completions": Completions()})(),
+        "models": type("M", (), {"list": lambda self: type("L", (), {"data": [type("X", (), {"id": "openai/gpt-oss-20b"})()]})()})(),
+    })()
+    monkeypatch.setattr(llm.settings, "groq_model", "retired-model")
+    svc = GroundedRAGService.__new__(GroundedRAGService)
+    svc.groq_client = client
+    out = svc._generate("prompt")
+    assert out["model"] == "openai/gpt-oss-20b" and calls[0] == "retired-model"
+    assert svc._generate("again")["model"] == "openai/gpt-oss-20b"   # cached: no second failure

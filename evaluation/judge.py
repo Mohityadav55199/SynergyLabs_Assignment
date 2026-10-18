@@ -1,6 +1,6 @@
 """LLM-as-judge for answer quality (faithfulness + answer relevance + correctness vs gold).
 
-* Judge model = JUDGE_MODEL (default: a different family from the Llama generator, to limit self-enhancement bias).
+* Judge model = JUDGE_MODEL (default: a different family from the Qwen generator, to limit self-enhancement bias).
 * Faithfulness is claim-level: the judge lists every factual claim in the answer and marks each SUPPORTED /
   UNSUPPORTED by the retrieved context only -> score = supported / total claims. This is more auditable than a
   single holistic number.
@@ -93,8 +93,9 @@ class AnswerJudge:
         for attempt in range(2):  # one retry on malformed output
             raw, usage = "", 0
             try:
+                extra = {"reasoning_effort": "low"} if self.model.startswith("openai/gpt-oss") else {}
                 resp = self.client.chat.completions.create(
-                    model=self.model, temperature=0.0, max_tokens=1500,
+                    model=self.model, temperature=0.0, max_tokens=4000, **extra,
                     messages=[{"role": "system", "content": JUDGE_SYSTEM}, {"role": "user", "content": prompt}],
                 )
                 raw = resp.choices[0].message.content or ""

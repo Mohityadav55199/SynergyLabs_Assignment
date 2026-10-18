@@ -9,7 +9,7 @@ Audience: whoever operates this service after the author. Read this before touch
 | Source code | This repo | GitHub `Mohityadav55199/SynergyLabs_Assignment` | Mohit Yadav (GitHub: Mohityadav55199) | free |
 | Backend API | FastAPI + embedded LanceDB/Qdrant + local embedding model | Render web service `srv-db9jnntg1s2s738vlhbg` (`cost-efficient-rag-service`, free plan, Oregon) | **[CONFIRM: Render account email]** | $0 (free tier) |
 | Frontend | Static chat UI in `public/` | Vercel project, https://synergylabs-lilac.vercel.app | **[CONFIRM: Vercel account]** | $0 |
-| LLM (generation) | Groq-hosted `llama-3.3-70b-versatile` | console.groq.com, API key stored ONLY as Render env var `GROQ_API_KEY` | **[CONFIRM: Groq account email]** | free tier / pay-as-you-go |
+| LLM (generation) | Groq-hosted `qwen/qwen3.8-27b` (the service falls back to another available model if this one is retired; see `/llm-status`) | console.groq.com, API key stored ONLY as Render env var `GROQ_API_KEY` | **[CONFIRM: Groq account email]** | free tier / pay-as-you-go |
 | LLM (eval judge) | Groq-hosted `openai/gpt-oss-120b`, used only when running the evaluation harness | same Groq key | same | pennies per run |
 | Keep-warm pinger | GitHub Actions cron hitting `/health` every 10 min | `.github/workflows/keep-warm.yml` | repo owner | free |
 | Embeddings | `BAAI/bge-small-en-v1.5` via fastembed, runs inside the API process | n/a | n/a | $0 |

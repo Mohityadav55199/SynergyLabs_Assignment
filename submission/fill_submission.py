@@ -72,7 +72,7 @@ QUERY
   POST /query or CLI --> embed query --> top-k cosine search (+ metadata filter on format|doc_id|filename|section)
      --> best score >= SIMILARITY_THRESHOLD (0.68)?
            NO  --> *** NO RELEVANT CONTEXT branch ***: fixed refusal, LLM NOT called, 0 tokens, no citations
-           YES --> grounded prompt (numbered chunks) --> Groq llama-3.3-70b-versatile, temp 0
+           YES --> grounded prompt (numbered chunks) --> Groq qwen/qwen3.8-27b, temp 0
                    --> answer with [Chunk-N] citations (only cited chunks returned)
                        + per-query log: latency (embed/search/gen/total), chunk count, token usage
                    (LLM down --> labelled extractive fallback, never scored as an LLM answer)

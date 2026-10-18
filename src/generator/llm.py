@@ -72,17 +72,61 @@ class GroundedRAGService:
         self.embedder = get_embedder()
         self.groq_client = Groq(api_key=settings.groq_api_key, max_retries=2, timeout=30.0) if settings.groq_configured else None
 
-    def _generate(self, user_prompt: str) -> Dict[str, Any]:
-        """Calls the Groq chat model once. Raises on failure (the caller degrades gracefully)."""
-        resp = self.groq_client.chat.completions.create(
-            model=settings.groq_model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.0,
-            max_tokens=600,
+    # Tried in order if the configured model is not available to the API key (Groq retires models).
+    FALLBACK_MODELS = ("qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b", "llama-3.3-70b-versatile",
+                       "llama-3.1-8b-instant")
+
+    def _resolve_model(self) -> str:
+        """Configured model if usable, else the first available fallback (looked up once, cached, logged loudly)."""
+        if getattr(self, "_model", None):
+            return self._model
+        self._model = settings.groq_model
+        return self._model
+
+    def _fallback_model(self, failed: str) -> Optional[str]:
+        try:
+            available = {m.id for m in self.groq_client.models.list().data}
+        except Exception as exc:
+            logger.error("Cannot list Groq models: %s", exc)
+            return None
+        for m in self.FALLBACK_MODELS:
+            if m in available and m != failed:
+                logger.warning("Model '%s' unavailable for this key; falling back to '%s'", failed, m)
+                self._model = m
+                return m
+        return None
+
+    def _chat(self, model: str, user_prompt: str):
+        kwargs: Dict[str, Any] = dict(
+            model=model, temperature=0.0, max_tokens=2000,
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user_prompt}],
         )
+        if model.startswith("qwen/"):
+            kwargs["reasoning_format"] = "hidden"   # keep chain-of-thought out of the answer
+        elif model.startswith("openai/gpt-oss"):
+            kwargs["reasoning_effort"] = "low"
+        try:
+            return self.groq_client.chat.completions.create(**kwargs)
+        except Exception as exc:
+            if type(exc).__name__ == "BadRequestError" and ("reasoning_format" in kwargs or "reasoning_effort" in kwargs):
+                kwargs.pop("reasoning_format", None)
+                kwargs.pop("reasoning_effort", None)   # model does not accept the reasoning knob: retry plain
+                return self.groq_client.chat.completions.create(**kwargs)
+            raise
+
+    def _generate(self, user_prompt: str) -> Dict[str, Any]:
+        """Calls the Groq chat model. Raises on failure (the caller degrades gracefully)."""
+        model = self._resolve_model()
+        try:
+            resp = self._chat(model, user_prompt)
+        except Exception as exc:
+            if type(exc).__name__ != "NotFoundError":
+                raise
+            fallback = self._fallback_model(model)
+            if not fallback:
+                raise
+            model = fallback
+            resp = self._chat(model, user_prompt)
         usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         if resp.usage:
             usage = {
@@ -90,7 +134,10 @@ class GroundedRAGService:
                 "completion_tokens": resp.usage.completion_tokens,
                 "total_tokens": resp.usage.total_tokens,
             }
-        return {"text": (resp.choices[0].message.content or "").strip(), "usage": usage}
+        text = re.sub(r"<think>.*?</think>", "", resp.choices[0].message.content or "", flags=re.S).strip()
+        if not text:
+            raise RuntimeError(f"Model '{model}' returned an empty answer")
+        return {"text": text, "usage": usage, "model": model}
 
     def query(
         self,
@@ -172,7 +219,7 @@ class GroundedRAGService:
                          section=usable[i].section, score=usable[i].score)
                 for i in idxs
             ]
-        return build(answer, "llm", citations, usable, out["usage"], gen_ms, settings.groq_model)
+        return build(answer, "llm", citations, usable, out["usage"], gen_ms, out.get("model", settings.groq_model))
 
     @staticmethod
     def _extractive(build, usable: List[SearchResult], reason: str) -> QueryResponse:

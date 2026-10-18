@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Groq LLM configuration (generator)
     groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
-    groq_model: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL")
+    groq_model: str = Field(default="qwen/qwen3.8-27b", alias="GROQ_MODEL")
     # Judge model for the answer-quality evaluation. Deliberately a different model
     # family from the generator to limit self-enhancement bias.
     judge_model: str = Field(default="openai/gpt-oss-120b", alias="JUDGE_MODEL")

@@ -30,7 +30,7 @@ flowchart TD
         V --> R
         R --> G{"best score >= SIMILARITY_THRESHOLD (0.68)?"}
         G -- "no: NO RELEVANT CONTEXT" --> F["Fixed refusal, LLM never called, 0 tokens"]
-        G -- yes --> L["Grounded prompt (numbered chunks) -> Groq llama-3.3-70b, temp 0"]
+        G -- yes --> L["Grounded prompt (numbered chunks) -> Groq qwen/qwen3.8-27b, temp 0"]
         L --> A["Answer + [Chunk-N] citations + latency / chunk count / token usage"]
         L -. LLM down .-> X2["labelled extractive fallback (verbatim passage)"]
     end
@@ -128,7 +128,7 @@ Small chunks (200) and no overlap (500/0) degrade retrieval. **Larger chunks sco
 
 ### 6.4 Answer quality (LLM-as-judge + gold)
 
-Judge: `openai/gpt-oss-120b` (different family from the Llama generator, to limit self-enhancement bias), temperature 0. Faithfulness is claim-level (supported claims / total claims, judged against the retrieved context only); answer relevance and correctness-vs-gold are 1-5 rubric scores rescaled to 0-1; EM and token-F1 vs the gold answers. Every judge prompt and raw response is logged to `evaluation/judge_log.jsonl`. Refusal accuracy on the 5 unanswerable questions and false-refusal rate on the 25 answerable ones are reported separately.
+Judge: `openai/gpt-oss-120b` (different family from the Qwen generator, to limit self-enhancement bias), temperature 0. Faithfulness is claim-level (supported claims / total claims, judged against the retrieved context only); answer relevance and correctness-vs-gold are 1-5 rubric scores rescaled to 0-1; EM and token-F1 vs the gold answers. Every judge prompt and raw response is logged to `evaluation/judge_log.jsonl`. Refusal accuracy on the 5 unanswerable questions and false-refusal rate on the 25 answerable ones are reported separately.
 
 **STATUS: PENDING.** The committed result files from an earlier version of this repo were produced with no LLM key (the "answers" were placeholder strings) and are discarded; nothing in this README is simulated. Run `python -m evaluation.harness` with `GROQ_API_KEY` set; `evaluation/results_summary.md` then contains the table and this section gets filled from it.
 
