@@ -1,11 +1,16 @@
-import time
+import logging
 import re
+import time
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from groq import Groq
 from src.config import settings
 from src.embeddings.embedder import get_embedder
 from src.vector_stores import get_vector_store, SearchResult
+
+logger = logging.getLogger("rag_generator")
+
+FALLBACK_ANSWER = "I do not have sufficient information in the provided context to answer this question."
 
 class Citation(BaseModel):
     chunk_id: str
@@ -18,23 +23,26 @@ class QueryResponse(BaseModel):
     answer: str
     citations: List[Citation]
     retrieved_chunks_count: int
-    retrieval_latency_ms: float
+    embedding_latency_ms: float = 0.0
+    retrieval_latency_ms: float          # vector search only (query embedding excluded)
     generation_latency_ms: float
     total_latency_ms: float
     token_usage: Dict[str, int]
     store_type: str
     model_used: str
+    # "llm" = grounded LLM answer | "no_context" = refused before calling the LLM |
+    # "extractive_fallback" = LLM unavailable, raw top chunk returned (never scored as an LLM answer)
+    generation_mode: str = "llm"
+    top_score: float = 0.0
     raw_chunks: List[SearchResult]
 
-SYSTEM_PROMPT = """You are an expert AI engineering assistant specializing in Vector Databases, RAG architectures, and Cloud Retrieval Systems.
-Your task is to answer user questions with strict grounding in the provided context chunks.
+SYSTEM_PROMPT = f"""You are an assistant that answers questions strictly from the provided context chunks.
 
 RULES:
-1. Grounding & Faithfulness: Rely ONLY on the clear facts directly mentioned in the Context Chunks below. Do NOT assume, extrapolate, or use outside knowledge.
-2. Citations: Whenever you state a claim or fact, cite the chunk it came from using the format [Chunk-X] or the chunk ID (e.g. [Chunk-1]).
-3. Fallback on Insufficient Context: If the provided chunks do not contain the answer, or if the question cannot be answered purely from the text, reply EXACTLY with:
-"I do not have sufficient information in the provided context to answer this question."
-Do NOT hallucinate, guess, or attempt to be helpful with ungrounded answers.
+1. Use ONLY facts stated in the Context Chunks. Do not use outside knowledge, do not extrapolate.
+2. After every claim, cite the chunk it came from as [Chunk-N] (N is the chunk number shown).
+3. If the chunks do not contain the answer, reply EXACTLY with: "{FALLBACK_ANSWER}" and nothing else.
+4. Be concise: answer in 1-3 sentences.
 """
 
 USER_PROMPT_TEMPLATE = """Context Chunks:
@@ -42,15 +50,47 @@ USER_PROMPT_TEMPLATE = """Context Chunks:
 
 User Question: {question}
 
-Grounded Answer (remember to cite chunks like [Chunk-1]):"""
+Grounded Answer (cite chunks like [Chunk-1]):"""
+
+_CITATION_RE = re.compile(r"\[?Chunk-(\d+)\]?", re.IGNORECASE)
+
+def is_fallback_answer(answer: str) -> bool:
+    return "do not have sufficient information" in answer.lower()
+
+def extract_cited_indices(answer: str, n_chunks: int) -> List[int]:
+    """0-based indices of the chunks the answer cites. Exact match on the number, so 'Chunk-1' never matches 'Chunk-10'."""
+    seen: List[int] = []
+    for m in _CITATION_RE.finditer(answer):
+        idx = int(m.group(1)) - 1
+        if 0 <= idx < n_chunks and idx not in seen:
+            seen.append(idx)
+    return seen
 
 class GroundedRAGService:
     def __init__(self, store_type: Optional[str] = None):
         self.store_type = store_type or settings.default_vector_store
         self.embedder = get_embedder()
-        self.groq_client = None
-        if settings.groq_api_key and settings.groq_api_key != "your_groq_api_key_here":
-            self.groq_client = Groq(api_key=settings.groq_api_key)
+        self.groq_client = Groq(api_key=settings.groq_api_key, max_retries=2, timeout=30.0) if settings.groq_configured else None
+
+    def _generate(self, user_prompt: str) -> Dict[str, Any]:
+        """Calls the Groq chat model once. Raises on failure (the caller degrades gracefully)."""
+        resp = self.groq_client.chat.completions.create(
+            model=settings.groq_model,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.0,
+            max_tokens=600,
+        )
+        usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        if resp.usage:
+            usage = {
+                "prompt_tokens": resp.usage.prompt_tokens,
+                "completion_tokens": resp.usage.completion_tokens,
+                "total_tokens": resp.usage.total_tokens,
+            }
+        return {"text": (resp.choices[0].message.content or "").strip(), "usage": usage}
 
     def query(
         self,
@@ -58,192 +98,88 @@ class GroundedRAGService:
         top_k: int = 4,
         store_type: Optional[str] = None,
         metadata_filter: Optional[Dict[str, Any]] = None,
-        similarity_threshold: float = 0.25
+        similarity_threshold: Optional[float] = None,
     ) -> QueryResponse:
+        query_text = (query_text or "").strip()
+        if not query_text:
+            raise ValueError("Query must not be empty")
+        if top_k < 1:
+            raise ValueError("top_k must be >= 1")
+        threshold = settings.similarity_threshold if similarity_threshold is None else similarity_threshold
+
         total_start = time.perf_counter()
         target_store_type = store_type or self.store_type
         store = get_vector_store(target_store_type)
 
-        # 1. Embed query
-        retrieval_start = time.perf_counter()
+        # 1. Embed query (timed separately from the vector search)
+        t0 = time.perf_counter()
         query_vector = self.embedder.embed_query(query_text)
+        embed_ms = (time.perf_counter() - t0) * 1000.0
 
-        # 2. Vector search with metadata filter
-        retrieved_chunks = store.search(
-            query_vector=query_vector,
-            top_k=top_k,
-            metadata_filter=metadata_filter
-        )
-        retrieval_elapsed_ms = (time.perf_counter() - retrieval_start) * 1000.0
+        # 2. Vector search + metadata filter
+        t1 = time.perf_counter()
+        retrieved = store.search(query_vector=query_vector, top_k=top_k, metadata_filter=metadata_filter)
+        search_ms = (time.perf_counter() - t1) * 1000.0
+        top_score = retrieved[0].score if retrieved else 0.0
 
-        # Filter by minimum relevance threshold
-        filtered_chunks = [c for c in retrieved_chunks if c.score >= similarity_threshold]
-
-        # 3. Handle 'no relevant context' before LLM call if nothing meets threshold
-        if not filtered_chunks:
-            total_elapsed_ms = (time.perf_counter() - total_start) * 1000.0
+        def build(answer: str, mode: str, citations: List[Citation], chunks: List[SearchResult],
+                  usage: Optional[Dict[str, int]] = None, gen_ms: float = 0.0, model: str = "") -> QueryResponse:
             return QueryResponse(
-                query=query_text,
-                answer="I do not have sufficient information in the provided context to answer this question.",
-                citations=[],
-                retrieved_chunks_count=0,
-                retrieval_latency_ms=round(retrieval_elapsed_ms, 2),
-                generation_latency_ms=0.0,
-                total_latency_ms=round(total_elapsed_ms, 2),
-                token_usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                store_type=target_store_type,
-                model_used=settings.groq_model,
-                raw_chunks=[]
+                query=query_text, answer=answer, citations=citations,
+                retrieved_chunks_count=len(chunks),
+                embedding_latency_ms=round(embed_ms, 2),
+                retrieval_latency_ms=round(search_ms, 2),
+                generation_latency_ms=round(gen_ms, 2),
+                total_latency_ms=round((time.perf_counter() - total_start) * 1000.0, 2),
+                token_usage=usage or {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                store_type=target_store_type, model_used=model, generation_mode=mode,
+                top_score=round(top_score, 4), raw_chunks=chunks,
             )
 
-        # 4. Construct grounded prompt with citations
-        context_parts = []
-        for idx, chunk in enumerate(filtered_chunks):
-            context_parts.append(
-                f"[Chunk-{idx + 1}] (ID: {chunk.chunk_id}, File: {chunk.filename}, Section: {chunk.section}):\n{chunk.text.strip()}"
-            )
-        context_block = "\n\n".join(context_parts)
+        # 3. "No relevant context" gate: refuse BEFORE calling the LLM when the best chunk is too dissimilar.
+        #    The gate keys on the top score so one weak tail chunk does not trigger a refusal,
+        #    and chunks below the threshold are not passed to the LLM.
+        usable = [c for c in retrieved if c.score >= threshold]
+        if not usable:
+            return build(FALLBACK_ANSWER, "no_context", [], [])
+
+        # 4. Grounded prompt
+        context_block = "\n\n".join(
+            f"[Chunk-{i + 1}] (File: {c.filename}, Section: {c.section}):\n{c.text.strip()}"
+            for i, c in enumerate(usable)
+        )
         user_prompt = USER_PROMPT_TEMPLATE.format(context_block=context_block, question=query_text)
 
-        # 5. Generate LLM Answer
-        gen_start = time.perf_counter()
-        token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-        answer_text = ""
-        actual_model_used = settings.groq_model
+        # 5. Generate
+        if self.groq_client is None:
+            return self._extractive(build, usable, "GROQ_API_KEY is not configured")
 
-        if self.groq_client:
-            accessible_models = []
-            model_discovery_err = None
-            try:
-                model_objs = self.groq_client.models.list()
-                accessible_models = [m.id for m in model_objs.data]
-            except Exception as e:
-                model_discovery_err = str(e)
+        g0 = time.perf_counter()
+        try:
+            out = self._generate(user_prompt)
+        except Exception as exc:
+            logger.error("Groq generation failed: %s", exc)
+            return self._extractive(build, usable, f"LLM call failed ({type(exc).__name__})")
+        gen_ms = (time.perf_counter() - g0) * 1000.0
+        answer = out["text"]
 
-            # Determine models to try based on account permissions
-            candidate_preferences = [
-                settings.groq_model,
-                "llama-3.3-70b-versatile",
-                "llama-3.1-8b-instant",
-                "llama-3.2-3b-preview",
-                "llama-3.2-1b-preview",
-                "llama-3.2-11b-vision-preview",
-                "llama-3.2-90b-vision-preview",
-                "gemma2-9b-it"
-            ]
-
-            if accessible_models:
-                models_to_try = [m for m in candidate_preferences if m in accessible_models]
-                if not models_to_try:
-                    # Pick any accessible chat/text model
-                    models_to_try = [m for m in accessible_models if not any(x in m.lower() for x in ["whisper", "guard", "embed"])]
-            else:
-                models_to_try = candidate_preferences[:4]
-
-            errors = []
-            if model_discovery_err:
-                errors.append(f"Model discovery failed: {model_discovery_err}")
-
-            for model_name in models_to_try:
-                try:
-                    response = self.groq_client.chat.completions.create(
-                        model=model_name,
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": user_prompt}
-                        ],
-                        temperature=0.2,
-                        max_tokens=800
-                    )
-                    answer_text = response.choices[0].message.content or ""
-                    if response.usage:
-                        token_usage = {
-                            "prompt_tokens": response.usage.prompt_tokens,
-                            "completion_tokens": response.usage.completion_tokens,
-                            "total_tokens": response.usage.total_tokens
-                        }
-                    actual_model_used = model_name
-                    errors = []
-                    break
-                except Exception as e:
-                    try:
-                        response = self.groq_client.chat.completions.create(
-                            model=model_name,
-                            messages=[
-                                {"role": "user", "content": f"{SYSTEM_PROMPT}\n\n{user_prompt}"}
-                            ],
-                            max_tokens=800
-                        )
-                        answer_text = response.choices[0].message.content or ""
-                        if response.usage:
-                            token_usage = {
-                                "prompt_tokens": response.usage.prompt_tokens,
-                                "completion_tokens": response.usage.completion_tokens,
-                                "total_tokens": response.usage.total_tokens
-                            }
-                        actual_model_used = model_name
-                        errors = []
-                        break
-                    except Exception as e2:
-                        errors.append(f"{model_name}: {str(e)}")
-                        continue
-
-            if errors and not answer_text:
-                top_c = filtered_chunks[0]
-                available_str = ", ".join(accessible_models) if accessible_models else "None accessible"
-                answer_text = (
-                    f"Based on [{top_c.filename} - {top_c.section}]:\n\n"
-                    f"{top_c.text.strip()}\n\n"
-                    f"[Chunk-1]\n\n"
-                    f"⚠️ Note: Groq error ({errors[0].splitlines()[0]}). Accessible models: [{available_str}]. "
-                    f"Please verify your GROQ_API_KEY in Render."
-                )
-        else:
-            top_c = filtered_chunks[0]
-            answer_text = (
-                f"Based on [{top_c.filename} - {top_c.section}]:\n\n"
-                f"{top_c.text.strip()}\n\n"
-                f"[Chunk-1]\n\n"
-                f"⚠️ Note: GROQ_API_KEY is not configured. Set your free key from https://console.groq.com/keys."
-            )
-
-        gen_elapsed_ms = (time.perf_counter() - gen_start) * 1000.0
-        total_elapsed_ms = (time.perf_counter() - total_start) * 1000.0
-
-        # 6. Extract citations
-        citations = []
-        for idx, chunk in enumerate(filtered_chunks):
-            chunk_tag = f"Chunk-{idx + 1}"
-            if chunk_tag in answer_text or chunk.chunk_id in answer_text or len(filtered_chunks) == 1:
-                citations.append(Citation(
-                    chunk_id=chunk.chunk_id,
-                    filename=chunk.filename,
-                    section=chunk.section,
-                    score=chunk.score
-                ))
-
-        # If model answered from chunks but omitted explicit tags, cite the top relevant chunks used
-        if not citations and "insufficient information" not in answer_text.lower():
+        # 6. Citations = chunks the model actually cited (none if it refused)
+        citations: List[Citation] = []
+        if not is_fallback_answer(answer):
+            idxs = extract_cited_indices(answer, len(usable))
             citations = [
-                Citation(
-                    chunk_id=c.chunk_id,
-                    filename=c.filename,
-                    section=c.section,
-                    score=c.score
-                )
-                for c in filtered_chunks[:2]
+                Citation(chunk_id=usable[i].chunk_id, filename=usable[i].filename,
+                         section=usable[i].section, score=usable[i].score)
+                for i in idxs
             ]
+        return build(answer, "llm", citations, usable, out["usage"], gen_ms, settings.groq_model)
 
-        return QueryResponse(
-            query=query_text,
-            answer=answer_text.strip(),
-            citations=citations,
-            retrieved_chunks_count=len(filtered_chunks),
-            retrieval_latency_ms=round(retrieval_elapsed_ms, 2),
-            generation_latency_ms=round(gen_elapsed_ms, 2),
-            total_latency_ms=round(total_elapsed_ms, 2),
-            token_usage=token_usage,
-            store_type=target_store_type,
-            model_used=actual_model_used,
-            raw_chunks=filtered_chunks
-        )
+    @staticmethod
+    def _extractive(build, usable: List[SearchResult], reason: str) -> QueryResponse:
+        """Degraded mode when the LLM is unavailable: return the best chunk verbatim, clearly labelled."""
+        top = usable[0]
+        answer = (f"[LLM unavailable: {reason}. Showing the most relevant passage verbatim.]\n\n"
+                  f"{top.text.strip()}")
+        return build(answer, "extractive_fallback",
+                     [Citation(chunk_id=top.chunk_id, filename=top.filename, section=top.section, score=top.score)],
+                     usable)
