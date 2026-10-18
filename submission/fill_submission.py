@@ -199,6 +199,11 @@ $ python -m src.cli stats --store lancedb
   total_chunks: 100
 (Same on --store qdrant. Also asserted in tests/test_stores.py and tests/test_api.py.)""", mono=True)
 
+# ---- 1.5 candidate-written reflection (text supplied by the candidate in submission/reflection_walkthrough.txt) ----
+walk = ROOT / "submission" / "reflection_walkthrough.txt"
+if walk.exists():
+    set_cell(T[18].rows[0].cells[0], walk.read_text(encoding="utf-8").strip(), size=10)
+
 # ---- 1.5 AI usage disclosure (factual statement of tool use; the candidate should review and edit it) ----
 set_cell(T[20].rows[0].cells[0],
          "Tool: Claude Code (Anthropic, model Claude Sonnet 5.5) running inside VS Code, used for most of the engineering in this repository: "
