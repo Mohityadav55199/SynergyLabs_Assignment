@@ -1,320 +1,284 @@
+"""Three-layer evaluation harness.
+
+  Layer 1  Retrieval  : Hit Rate, Recall@k, MRR, nDCG@k, Precision@k, Context Precision (no LLM needed)
+  Layer 2  Answer     : LLM-judge faithfulness / relevance / correctness + EM / token-F1 vs gold (needs GROQ_API_KEY)
+  Layer 3  Latency    : p50 / p95 of query-embedding, vector search, generation and end-to-end
+
+Usage:
+  python -m evaluation.harness                      # all layers, both stores (answer layer on the primary store)
+  python -m evaluation.harness --skip-answer-eval   # retrieval + latency only (no API key needed)
+  python -m evaluation.harness --k 4 --repeats 5
+
+Results are written to evaluation/results_<store>.json and evaluation/results_summary.md.
+If the answer layer cannot run (no key) it is recorded as NOT_RUN - numbers are never simulated.
+"""
+import argparse
 import json
-import math
-import os
 import re
 import string
-import time
 import sys
+import time
+from collections import Counter
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 
-# Add project root to sys.path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-from src.config import settings
-from src.generator.llm import GroundedRAGService, QueryResponse
-from src.vector_stores import get_vector_store
+from evaluation.ground_truth import build_corpus_chunks, relevant_chunk_ids  # noqa: E402
+from evaluation.ir_metrics import all_metrics  # noqa: E402
+from src.config import settings  # noqa: E402
+from src.embeddings.embedder import get_embedder  # noqa: E402
+from src.generator.llm import FALLBACK_ANSWER, GroundedRAGService, is_fallback_answer  # noqa: E402
+from src.vector_stores import get_vector_store  # noqa: E402
 
-FALLBACK_PHRASE = "I do not have sufficient information in the provided context to answer this question."
+EVAL_DIR = Path(__file__).resolve().parent
+_CITE = re.compile(r"\[?Chunk-\d+\]?", re.I)
 
+
+# ----------------------------- answer string metrics (SQuAD-style) -----------------------------
 def normalize_text(s: str) -> str:
-    """Lower text and remove punctuation, articles and extra whitespace."""
-    def remove_articles(text):
-        return re.sub(r'\b(a|an|the)\b', ' ', text)
-    def white_space_fix(text):
-        return ' '.join(text.split())
-    def remove_punc(text):
-        exclude = set(string.punctuation)
-        return ''.join(ch for ch in text if ch not in exclude)
-    return white_space_fix(remove_articles(remove_punc(s.lower())))
+    s = _CITE.sub(" ", s.lower())
+    s = "".join(ch for ch in s if ch not in set(string.punctuation))
+    s = re.sub(r"\b(a|an|the)\b", " ", s)
+    return " ".join(s.split())
 
-def compute_exact_match(prediction: str, gold: str) -> float:
-    return float(normalize_text(prediction) == normalize_text(gold))
 
-def compute_token_f1(prediction: str, gold: str) -> float:
-    pred_tokens = normalize_text(prediction).split()
-    gold_tokens = normalize_text(gold).split()
+def exact_match(pred: str, gold: str) -> float:
+    return float(normalize_text(pred) == normalize_text(gold))
 
-    if not pred_tokens or not gold_tokens:
-        return float(pred_tokens == gold_tokens)
 
-    common = set(pred_tokens) & set(gold_tokens)
-    if not common:
+def token_f1(pred: str, gold: str) -> float:
+    p, g = normalize_text(pred).split(), normalize_text(gold).split()
+    if not p or not g:
+        return float(p == g)
+    overlap = sum((Counter(p) & Counter(g)).values())
+    if overlap == 0:
         return 0.0
+    prec, rec = overlap / len(p), overlap / len(g)
+    return 2 * prec * rec / (prec + rec)
 
-    precision = sum(min(pred_tokens.count(w), gold_tokens.count(w)) for w in common) / len(pred_tokens)
-    recall = sum(min(pred_tokens.count(w), gold_tokens.count(w)) for w in common) / len(gold_tokens)
 
-    if precision + recall == 0:
-        return 0.0
-    return 2.0 * (precision * recall) / (precision + recall)
+def pct(values: List[float], q: float) -> float:
+    return round(float(np.percentile(values, q)), 2) if values else float("nan")
 
-def is_chunk_relevant(chunk: Dict[str, Any], test_case: Dict[str, Any]) -> bool:
-    if not test_case.get("is_answerable", True):
-        return False
 
-    target_file = test_case.get("target_file", "")
-    chunk_file = chunk.get("filename", "")
-    text = chunk.get("text", "").lower()
-    keywords = [kw.lower() for kw in test_case.get("expected_keywords", [])]
+def mean(values: List[Optional[float]]) -> Optional[float]:
+    vals = [v for v in values if v is not None]
+    return round(float(np.mean(vals)), 4) if vals else None
 
-    # File match + section/keyword overlap
-    if target_file and target_file in chunk_file:
-        section = test_case.get("relevant_section", "").lower()
-        chunk_section = chunk.get("section", "").lower()
-        if section and section in chunk_section:
-            return True
-        if keywords and any(kw in text for kw in keywords):
-            return True
 
-    # Fallback keyword match
-    if keywords:
-        matches = sum(1 for kw in keywords if kw in text)
-        if matches >= max(1, len(keywords) // 2):
-            return True
+# ----------------------------- layer 1 + 3: retrieval & latency -----------------------------
+def evaluate_retrieval(store_type: str, cases: List[Dict], chunks, k: int, repeats: int) -> Dict[str, Any]:
+    embedder, store = get_embedder(), get_vector_store(store_type)
+    for _ in range(3):  # warm-up (ONNX session, disk cache) so p95 is not dominated by first-call cost
+        store.search(embedder.embed_query("warm up"), k)
 
-    return False
+    per_case, embed_ms, search_ms = [], [], []
+    for tc in cases:
+        relevant = relevant_chunk_ids(tc, chunks)
+        row: Dict[str, Any] = {"id": tc["id"], "is_answerable": tc["is_answerable"], "n_relevant_chunks": len(relevant)}
+        for variant, flt in (("unfiltered", None), ("filtered", tc.get("metadata_filter"))):
+            lat_e, lat_s, results = [], [], None
+            for _ in range(repeats):
+                t0 = time.perf_counter()
+                qv = embedder.embed_query(tc["question"])
+                t1 = time.perf_counter()
+                results = store.search(qv, k, flt)
+                t2 = time.perf_counter()
+                lat_e.append((t1 - t0) * 1000)
+                lat_s.append((t2 - t1) * 1000)
+            if variant == "unfiltered":
+                embed_ms += lat_e
+                search_ms += lat_s
+            ids = [r.chunk_id for r in results]
+            row[variant] = {
+                "retrieved_chunk_ids": ids,
+                "top_score": results[0].score if results else 0.0,
+                **(all_metrics(ids, relevant, k) if tc["is_answerable"] else {}),
+            }
+        per_case.append(row)
 
-def compute_retrieval_metrics(
-    retrieved_chunks: List[Dict[str, Any]],
-    test_case: Dict[str, Any],
-    k: int
-) -> Dict[str, float]:
-    """
-    Computes standard Information Retrieval (IR) metrics:
-    - Hit Rate @ k
-    - Recall @ k
-    - MRR (Mean Reciprocal Rank)
-    - nDCG @ k
-    - Context Precision
-    """
-    is_ans = test_case.get("is_answerable", True)
+    answerable = [r for r in per_case if r["is_answerable"]]
+    agg = {}
+    for variant in ("unfiltered", "filtered"):
+        agg[variant] = {m: mean([r[variant][m] for r in answerable])
+                        for m in ("hit_rate", "recall", "precision", "mrr", "ndcg", "context_precision")}
 
-    if not is_ans:
-        # For unanswerable questions, 0 chunks should be relevant.
-        # If retrieved chunks have very low similarity or don't fool the system, that's correct.
-        return {
-            "hit_rate": 1.0,
-            "recall": 1.0,
-            "mrr": 1.0,
-            "ndcg": 1.0,
-            "context_precision": 1.0
-        }
-
-    relevance_flags = [
-        1 if is_chunk_relevant(c, test_case) else 0
-        for c in retrieved_chunks[:k]
-    ]
-
-    total_relevant = 1  # Standard IR assumption: at least 1 ground truth target chunk exists
-
-    # 1. Hit Rate
-    hit_rate = 1.0 if any(r == 1 for r in relevance_flags) else 0.0
-
-    # 2. Recall @ k
-    num_relevant_retrieved = sum(relevance_flags)
-    recall = min(1.0, num_relevant_retrieved / total_relevant)
-
-    # 3. MRR
-    mrr = 0.0
-    for rank, rel in enumerate(relevance_flags, start=1):
-        if rel == 1:
-            mrr = 1.0 / rank
-            break
-
-    # 4. nDCG @ k
-    dcg = 0.0
-    for rank, rel in enumerate(relevance_flags, start=1):
-        if rel == 1:
-            dcg += 1.0 / math.log2(rank + 1)
-
-    # Ideal DCG (relevant chunk at rank 1)
-    idcg = 1.0 / math.log2(2)  # log2(1+1) = 1.0 => 1.0
-    ndcg = dcg / idcg if idcg > 0 else 0.0
-
-    # 5. Context Precision: sum(P@i * rel_i) / num_relevant_retrieved
-    if num_relevant_retrieved > 0:
-        precision_sum = 0.0
-        cumulative_rel = 0
-        for rank, rel in enumerate(relevance_flags, start=1):
-            if rel == 1:
-                cumulative_rel += 1
-                precision_at_i = cumulative_rel / rank
-                precision_sum += precision_at_i
-        context_precision = precision_sum / num_relevant_retrieved
-    else:
-        context_precision = 0.0
-
+    # Threshold behaviour: how well does top-1 similarity separate answerable from unanswerable questions?
+    ans_top = [r["unfiltered"]["top_score"] for r in answerable]
+    una_top = [r["unfiltered"]["top_score"] for r in per_case if not r["is_answerable"]]
+    thr = settings.similarity_threshold
+    gate = {
+        "threshold": thr,
+        "min_top_score_answerable": min(ans_top),
+        "max_top_score_unanswerable": max(una_top),
+        "answerable_passing_gate": f"{sum(s >= thr for s in ans_top)}/{len(ans_top)}",
+        "unanswerable_blocked_by_gate": f"{sum(s < thr for s in una_top)}/{len(una_top)}",
+    }
     return {
-        "hit_rate": round(hit_rate, 4),
-        "recall": round(recall, 4),
-        "mrr": round(mrr, 4),
-        "ndcg": round(ndcg, 4),
-        "context_precision": round(context_precision, 4)
+        "per_case": per_case,
+        "aggregate": agg,
+        "similarity_gate": gate,
+        "latency_ms": {
+            "samples": len(search_ms),
+            "query_embedding_p50": pct(embed_ms, 50), "query_embedding_p95": pct(embed_ms, 95),
+            "vector_search_p50": pct(search_ms, 50), "vector_search_p95": pct(search_ms, 95),
+        },
     }
 
-class EvaluationHarness:
-    def __init__(self, dataset_path: Optional[str] = None):
-        base_dir = Path(__file__).resolve().parent
-        self.dataset_path = Path(dataset_path or (base_dir / "dataset.json"))
-        with open(self.dataset_path, "r", encoding="utf-8") as f:
-            self.test_cases = json.load(f)
 
-    def run_evaluation(self, store_type: str = "lancedb", top_k: int = 4) -> Dict[str, Any]:
-        rag_service = GroundedRAGService(store_type=store_type)
-        results = []
-        retrieval_latencies = []
-        total_latencies = []
+# ----------------------------- layer 2: answer quality -----------------------------
+def evaluate_answers(store_type: str, cases: List[Dict], k: int) -> Dict[str, Any]:
+    if not settings.groq_configured:
+        return {"status": "NOT_RUN", "reason": "GROQ_API_KEY not configured - no generated answers, nothing to judge"}
+    from evaluation.judge import AnswerJudge  # imported lazily so retrieval-only runs need no key
 
-        print(f"\n{'='*70}")
-        print(f"RUNNING RAG EVALUATION ON: {store_type.upper()} (Top-k={top_k})")
-        print(f"{'='*70}")
-
-        for tc in self.test_cases:
-            qid = tc["id"]
-            question = tc["question"]
-            gold = tc.get("gold_answer", "")
-            is_ans = tc.get("is_answerable", True)
-            meta_filter = tc.get("metadata_filter")
-
-            start_t = time.perf_counter()
-            response: QueryResponse = rag_service.query(
-                query_text=question,
-                top_k=top_k,
-                store_type=store_type,
-                metadata_filter=meta_filter
-            )
-            elapsed_total = (time.perf_counter() - start_t) * 1000.0
-
-            retrieval_latencies.append(response.retrieval_latency_ms)
-            total_latencies.append(elapsed_total)
-
-            # Compute Retrieval Metrics
-            raw_chunk_dicts = [c.model_dump() for c in response.raw_chunks]
-            ret_metrics = compute_retrieval_metrics(raw_chunk_dicts, tc, k=top_k)
-
-            # Compute Answer Metrics
-            prediction = response.answer
-            em = compute_exact_match(prediction, gold)
-            f1 = compute_token_f1(prediction, gold)
-
-            # Faithfulness & Answer Relevance heuristic
-            # Grounded if citations exist or correctly returns fallback
-            is_fallback = FALLBACK_PHRASE.lower() in prediction.lower()
-            if not is_ans:
-                faithfulness = 1.0 if is_fallback else 0.0
-                relevance = 1.0 if is_fallback else 0.2
-            else:
-                has_citations = len(response.citations) > 0
-                keyword_overlap = sum(1 for kw in tc.get("expected_keywords", []) if kw.lower() in prediction.lower())
-                faithfulness = 1.0 if (has_citations and keyword_overlap > 0) else 0.5
-                relevance = min(1.0, 0.4 + (f1 * 0.6))
-
-            case_result = {
-                "id": qid,
-                "question": question,
-                "is_answerable": is_ans,
-                "gold_answer": gold,
-                "generated_answer": prediction,
-                "citations": [c.model_dump() for c in response.citations],
-                "retrieval_metrics": ret_metrics,
-                "answer_metrics": {
-                    "exact_match": round(em, 4),
-                    "token_f1": round(f1, 4),
-                    "faithfulness": round(faithfulness, 4),
-                    "relevance": round(relevance, 4),
-                    "correct_fallback": (is_fallback if not is_ans else None)
-                },
-                "latency_ms": {
-                    "retrieval": response.retrieval_latency_ms,
-                    "generation": response.generation_latency_ms,
-                    "total": round(elapsed_total, 2)
-                }
-            }
-            results.append(case_result)
-            print(f"[{qid}] Recall@{top_k}={ret_metrics['recall']} | MRR={ret_metrics['mrr']} | F1={round(f1,2)} | Latency={round(elapsed_total,1)}ms")
-
-        # Aggregate Suite Metrics
-        answerable_cases = [r for r in results if r["is_answerable"]]
-        unanswerable_cases = [r for r in results if not r["is_answerable"]]
-
-        mean_hit_rate = np.mean([r["retrieval_metrics"]["hit_rate"] for r in answerable_cases])
-        mean_recall = np.mean([r["retrieval_metrics"]["recall"] for r in answerable_cases])
-        mean_mrr = np.mean([r["retrieval_metrics"]["mrr"] for r in answerable_cases])
-        mean_ndcg = np.mean([r["retrieval_metrics"]["ndcg"] for r in answerable_cases])
-        mean_precision = np.mean([r["retrieval_metrics"]["context_precision"] for r in answerable_cases])
-
-        mean_f1 = np.mean([r["answer_metrics"]["token_f1"] for r in answerable_cases])
-        mean_faithfulness = np.mean([r["answer_metrics"]["faithfulness"] for r in results])
-        mean_relevance = np.mean([r["answer_metrics"]["relevance"] for r in results])
-        fallback_accuracy = np.mean([1.0 if r["answer_metrics"]["correct_fallback"] else 0.0 for r in unanswerable_cases])
-
-        p50_retrieval = np.percentile(retrieval_latencies, 50)
-        p95_retrieval = np.percentile(retrieval_latencies, 95)
-        p50_total = np.percentile(total_latencies, 50)
-        p95_total = np.percentile(total_latencies, 95)
-
-        summary = {
-            "store_type": store_type,
-            "total_questions": len(self.test_cases),
-            "answerable_count": len(answerable_cases),
-            "unanswerable_count": len(unanswerable_cases),
-            "retrieval_evaluation": {
-                "hit_rate_at_k": round(float(mean_hit_rate), 4),
-                "recall_at_k": round(float(mean_recall), 4),
-                "mrr": round(float(mean_mrr), 4),
-                "ndcg_at_k": round(float(mean_ndcg), 4),
-                "context_precision": round(float(mean_precision), 4)
-            },
-            "answer_evaluation": {
-                "mean_token_f1": round(float(mean_f1), 4),
-                "mean_faithfulness": round(float(mean_faithfulness), 4),
-                "mean_answer_relevance": round(float(mean_relevance), 4),
-                "fallback_accuracy_on_unanswerable": round(float(fallback_accuracy), 4)
-            },
-            "latency_evaluation_ms": {
-                "p50_retrieval_latency": round(float(p50_retrieval), 2),
-                "p95_retrieval_latency": round(float(p95_retrieval), 2),
-                "p50_total_latency": round(float(p50_total), 2),
-                "p95_total_latency": round(float(p95_total), 2)
-            },
-            "per_question_results": results
+    rag, judge = GroundedRAGService(store_type=store_type), AnswerJudge()
+    rows, e2e = [], []
+    for tc in cases:
+        t0 = time.perf_counter()
+        resp = rag.query(tc["question"], top_k=k, store_type=store_type)  # unfiltered: the honest setting
+        e2e.append((time.perf_counter() - t0) * 1000)
+        refused = is_fallback_answer(resp.answer)
+        row: Dict[str, Any] = {
+            "id": tc["id"], "question": tc["question"], "is_answerable": tc["is_answerable"],
+            "generation_mode": resp.generation_mode, "refused": refused, "answer": resp.answer,
+            "gold_answer": tc["gold_answer"], "citations": [c.chunk_id for c in resp.citations],
+            "tokens": resp.token_usage, "latency_ms": {"search": resp.retrieval_latency_ms,
+                                                       "generation": resp.generation_latency_ms,
+                                                       "total": resp.total_latency_ms},
         }
+        if resp.generation_mode == "extractive_fallback":
+            row["note"] = "LLM unavailable - excluded from answer metrics"
+            rows.append(row)
+            continue
+        if tc["is_answerable"] and not refused:
+            row["exact_match"] = exact_match(resp.answer, tc["gold_answer"])
+            row["token_f1"] = round(token_f1(resp.answer, tc["gold_answer"]), 4)
+            verdict = judge.judge(tc["id"], tc["question"], [c.text for c in resp.raw_chunks], tc["gold_answer"], resp.answer)
+            row["judge"] = verdict
+        rows.append(row)
+        print(f"  [{tc['id']}] refused={refused} mode={resp.generation_mode} "
+              f"{'judge=' + json.dumps(row.get('judge', {}).get('scores')) if 'judge' in row else ''}")
 
-        # Save results to file
-        output_file = Path(__file__).resolve().parent / f"results_{store_type}.json"
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(summary, f, indent=2)
+    usable = [r for r in rows if r["generation_mode"] != "extractive_fallback"]
+    ans = [r for r in usable if r["is_answerable"]]
+    ans_scored = [r for r in ans if "judge" in r]
+    una = [r for r in usable if not r["is_answerable"]]
+    s = lambda r, key: (r["judge"]["scores"] or {}).get(key)  # noqa: E731
+    judge_failures = sum(1 for r in ans_scored if r["judge"]["scores"] is None)
+    return {
+        "status": "OK", "generator_model": settings.groq_model, "judge_model": judge.model,
+        "judge_calls": judge.calls, "judge_tokens": judge.tokens, "judge_unparseable": judge_failures,
+        "answerable_total": len(ans), "answerable_answered": len(ans_scored),
+        "false_refusal_rate_on_answerable": round(1 - len(ans_scored) / len(ans), 4) if ans else None,
+        "refusal_accuracy_on_unanswerable": round(sum(r["refused"] for r in una) / len(una), 4) if una else None,
+        "faithfulness_mean": mean([s(r, "faithfulness") for r in ans_scored if r["judge"]["scores"]]),
+        "answer_relevance_mean": mean([s(r, "relevance") for r in ans_scored if r["judge"]["scores"]]),
+        "correctness_vs_gold_mean": mean([s(r, "correctness") for r in ans_scored if r["judge"]["scores"]]),
+        "exact_match_mean": mean([r["exact_match"] for r in ans_scored]),
+        "token_f1_mean": mean([r["token_f1"] for r in ans_scored]),
+        "mean_total_tokens_per_query": mean([r["tokens"]["total_tokens"] for r in usable]),
+        "end_to_end_latency_ms": {"p50": pct(e2e, 50), "p95": pct(e2e, 95)},
+        "per_case": rows,
+    }
 
-        print(f"\n[+] Results saved to: {output_file}")
-        print("\n" + "=" * 60)
-        print(f"EVALUATION SUMMARY ({store_type.upper()})")
-        print("=" * 60)
-        print(f"Retrieval Recall@{top_k}  : {summary['retrieval_evaluation']['recall_at_k'] * 100:.1f}%")
-        print(f"Retrieval Hit Rate@{top_k}: {summary['retrieval_evaluation']['hit_rate_at_k'] * 100:.1f}%")
-        print(f"Retrieval MRR         : {summary['retrieval_evaluation']['mrr']:.4f}")
-        print(f"Retrieval nDCG@{top_k}     : {summary['retrieval_evaluation']['ndcg_at_k']:.4f}")
-        print(f"Context Precision     : {summary['retrieval_evaluation']['context_precision']:.4f}")
-        print("-" * 60)
-        print(f"Faithfulness Score    : {summary['answer_evaluation']['mean_faithfulness']:.4f}")
-        print(f"Answer Relevance      : {summary['answer_evaluation']['mean_answer_relevance']:.4f}")
-        print(f"Fallback Accuracy     : {summary['answer_evaluation']['fallback_accuracy_on_unanswerable'] * 100:.1f}%")
-        print("-" * 60)
-        print(f"p50 Retrieval Latency : {summary['latency_evaluation_ms']['p50_retrieval_latency']} ms")
-        print(f"p95 Retrieval Latency : {summary['latency_evaluation_ms']['p95_retrieval_latency']} ms")
-        print("=" * 60 + "\n")
 
-        return summary
+# ----------------------------- orchestration -----------------------------
+def run(stores: List[str], k: int, repeats: int, skip_answer: bool, dataset: Path) -> None:
+    cases = json.loads(dataset.read_text(encoding="utf-8"))
+    chunks = build_corpus_chunks(Path(settings.corpus_dir), settings.default_chunk_size, settings.default_chunk_overlap)
+    n_vec = {s: get_vector_store(s).count() for s in stores}
+    for s in stores:  # the index must match the chunking the ground truth was built with
+        if n_vec[s] != len(chunks):
+            sys.exit(f"[!] {s} holds {n_vec[s]} vectors but the corpus yields {len(chunks)} chunks at "
+                     f"size={settings.default_chunk_size}/overlap={settings.default_chunk_overlap}. "
+                     f"Re-ingest (python -m src.cli ingest --store {s}) before evaluating.")
 
-def main():
-    harness = EvaluationHarness()
-    # Evaluate primary store: LanceDB
-    harness.run_evaluation(store_type="lancedb", top_k=4)
-    # Evaluate secondary benchmark store: Qdrant
-    harness.run_evaluation(store_type="qdrant", top_k=4)
+    summary_rows = []
+    for i, store_type in enumerate(stores):
+        print(f"\n=== {store_type.upper()}  k={k}  questions={len(cases)}  chunks={len(chunks)} ===")
+        retrieval = evaluate_retrieval(store_type, cases, chunks, k, repeats)
+        answer = ({"status": "NOT_RUN", "reason": "--skip-answer-eval"} if skip_answer
+                  else evaluate_answers(store_type, cases, k) if i == 0
+                  else {"status": "NOT_RUN", "reason": "answer layer is run on the primary store only; retrieval is the only difference between stores"})
+        result = {
+            "store_type": store_type, "k": k, "questions": len(cases),
+            "answerable": sum(c["is_answerable"] for c in cases),
+            "corpus": {"documents": len({c.filename for c in chunks}), "chunks": len(chunks),
+                       "chunk_size": settings.default_chunk_size, "chunk_overlap": settings.default_chunk_overlap},
+            "embedding": {"model": settings.embedding_model, "dim": settings.embedding_dim},
+            "retrieval_evaluation": retrieval, "answer_evaluation": answer,
+        }
+        (EVAL_DIR / f"results_{store_type}.json").write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+        summary_rows.append(result)
+        agg, lat = retrieval["aggregate"], retrieval["latency_ms"]
+        print(f"Retrieval (unfiltered)  hit={agg['unfiltered']['hit_rate']} recall={agg['unfiltered']['recall']} "
+              f"mrr={agg['unfiltered']['mrr']} ndcg={agg['unfiltered']['ndcg']} ctx_prec={agg['unfiltered']['context_precision']}")
+        print(f"Retrieval (filtered)    hit={agg['filtered']['hit_rate']} mrr={agg['filtered']['mrr']} ndcg={agg['filtered']['ndcg']}")
+        print(f"Latency  search p50/p95 = {lat['vector_search_p50']}/{lat['vector_search_p95']} ms | "
+              f"embed p50/p95 = {lat['query_embedding_p50']}/{lat['query_embedding_p95']} ms")
+        print(f"Gate: {retrieval['similarity_gate']}")
+        if answer["status"] == "OK":
+            print({k_: v for k_, v in answer.items() if k_ != "per_case"})
+        else:
+            print(f"Answer layer: {answer['status']} ({answer['reason']})")
+    write_summary(summary_rows)
+
+
+def write_summary(results: List[Dict]) -> None:
+    L = ["# Evaluation summary (auto-generated by `python -m evaluation.harness`)\n"]
+    r0 = results[0]
+    L.append(f"{r0['questions']} questions ({r0['answerable']} answerable) | corpus: {r0['corpus']['documents']} docs, "
+             f"{r0['corpus']['chunks']} chunks (size {r0['corpus']['chunk_size']}, overlap {r0['corpus']['chunk_overlap']}) | "
+             f"embeddings: {r0['embedding']['model']} ({r0['embedding']['dim']}-d) | k={r0['k']}\n")
+    L.append("## Retrieval (answerable questions, unfiltered search)\n")
+    L.append("| Store | Hit Rate@k | Recall@k | MRR | nDCG@k | Precision@k | Context Precision |\n|---|---|---|---|---|---|---|")
+    for r in results:
+        a = r["retrieval_evaluation"]["aggregate"]["unfiltered"]
+        L.append(f"| {r['store_type']} | {a['hit_rate']} | {a['recall']} | {a['mrr']} | {a['ndcg']} | {a['precision']} | {a['context_precision']} |")
+    L.append("\n## Retrieval with the metadata filter the dataset specifies (format = pdf/html/md)\n")
+    L.append("| Store | Hit Rate@k | Recall@k | MRR | nDCG@k |\n|---|---|---|---|---|")
+    for r in results:
+        a = r["retrieval_evaluation"]["aggregate"]["filtered"]
+        L.append(f"| {r['store_type']} | {a['hit_rate']} | {a['recall']} | {a['mrr']} | {a['ndcg']} |")
+    L.append("\n## Latency (ms, warm, per-query samples)\n")
+    L.append("| Store | search p50 | search p95 | query-embed p50 | query-embed p95 | samples |\n|---|---|---|---|---|---|")
+    for r in results:
+        l = r["retrieval_evaluation"]["latency_ms"]
+        L.append(f"| {r['store_type']} | {l['vector_search_p50']} | {l['vector_search_p95']} | {l['query_embedding_p50']} | {l['query_embedding_p95']} | {l['samples']} |")
+    L.append("\n## Similarity gate\n")
+    for r in results[:1]:
+        L.append("```\n" + json.dumps(r["retrieval_evaluation"]["similarity_gate"], indent=2) + "\n```")
+    L.append("\n## Answer quality (primary store)\n")
+    a = results[0]["answer_evaluation"]
+    if a["status"] != "OK":
+        L.append(f"**NOT RUN** - {a['reason']}")
+    else:
+        L.append("| Metric | Value |\n|---|---|")
+        for key in ("generator_model", "judge_model", "faithfulness_mean", "answer_relevance_mean", "correctness_vs_gold_mean",
+                    "exact_match_mean", "token_f1_mean", "false_refusal_rate_on_answerable", "refusal_accuracy_on_unanswerable",
+                    "mean_total_tokens_per_query", "judge_calls", "judge_tokens", "judge_unparseable"):
+            L.append(f"| {key} | {a[key]} |")
+        L.append(f"| end-to-end latency p50 / p95 (ms) | {a['end_to_end_latency_ms']['p50']} / {a['end_to_end_latency_ms']['p95']} |")
+    (EVAL_DIR / "results_summary.md").write_text("\n".join(L) + "\n", encoding="utf-8")
+    print(f"\n[+] wrote {EVAL_DIR / 'results_summary.md'}")
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--stores", nargs="+", default=["lancedb", "qdrant"], choices=["lancedb", "qdrant"])
+    ap.add_argument("--k", type=int, default=4)
+    ap.add_argument("--repeats", type=int, default=5, help="repetitions per query for latency percentiles")
+    ap.add_argument("--skip-answer-eval", action="store_true")
+    ap.add_argument("--dataset", type=Path, default=EVAL_DIR / "dataset.json")
+    args = ap.parse_args()
+    run(args.stores, args.k, args.repeats, args.skip_answer_eval, args.dataset)
+
 
 if __name__ == "__main__":
     main()

@@ -3,250 +3,456 @@
     "id": "q01",
     "question": "What is HNSW and what recall accuracy does it provide?",
     "target_file": "vector_db_architecture.pdf",
-    "relevant_section": "Section 1",
-    "expected_keywords": ["Hierarchical Navigable Small World", "graph", "98%"],
+    "expected_keywords": [
+      "Hierarchical Navigable Small World",
+      "graph",
+      "98%"
+    ],
     "gold_answer": "Hierarchical Navigable Small World (HNSW) is a graph-based Approximate Nearest Neighbor index structure that provides state-of-the-art recall exceeding 98% with sub-millisecond query latency.",
     "is_answerable": true,
-    "metadata_filter": {"format": "pdf"}
+    "metadata_filter": {
+      "format": "pdf"
+    },
+    "evidence": "(>98%)"
   },
   {
     "id": "q02",
     "question": "How does HNSW graph routing work across layers?",
     "target_file": "vector_db_architecture.pdf",
-    "relevant_section": "Section 1",
-    "expected_keywords": ["multi-layer", "skip links", "routing", "bottom layer"],
+    "expected_keywords": [
+      "multi-layer",
+      "skip links",
+      "routing",
+      "bottom layer"
+    ],
     "gold_answer": "HNSW constructs a multi-layer graph where upper layers have sparse long-distance skip links for fast routing across the vector space, and the bottom layer contains dense local connections for precise neighbor discovery.",
     "is_answerable": true,
-    "metadata_filter": {"format": "pdf"}
+    "metadata_filter": {
+      "format": "pdf"
+    },
+    "evidence": "multi-layer graph"
   },
   {
     "id": "q03",
     "question": "What is the memory overhead per vector for an HNSW index?",
     "target_file": "vector_db_architecture.pdf",
-    "relevant_section": "Section 1",
-    "expected_keywords": ["1.5", "2.0 KB", "RAM", "memory"],
+    "expected_keywords": [
+      "1.5",
+      "2.0 KB",
+      "RAM",
+      "memory"
+    ],
     "gold_answer": "An HNSW index requires approximately 1.5 to 2.0 KB of memory (RAM) per 1536-dimensional vector to store raw vectors and graph connectivity edges.",
     "is_answerable": true,
-    "metadata_filter": {"format": "pdf"}
+    "metadata_filter": {
+      "format": "pdf"
+    },
+    "evidence": "1.5 to 2.0 KB"
   },
   {
     "id": "q04",
     "question": "How does IVF-PQ achieve memory reduction compared to raw HNSW?",
     "target_file": "vector_db_architecture.pdf",
-    "relevant_section": "Section 1",
-    "expected_keywords": ["Voronoi", "Product Quantization", "95%", "byte codes"],
+    "expected_keywords": [
+      "Voronoi",
+      "Product Quantization",
+      "95%",
+      "byte codes"
+    ],
     "gold_answer": "IVF-PQ partitions the vector space into Voronoi cells and quantizes vectors into compact byte codes, reducing the memory footprint by up to 95% compared to raw HNSW.",
     "is_answerable": true,
-    "metadata_filter": {"format": "pdf"}
+    "metadata_filter": {
+      "format": "pdf"
+    },
+    "evidence": "up to 95%"
   },
   {
     "id": "q05",
     "question": "What underlying columnar data format powers LanceDB?",
     "target_file": "vector_db_architecture.pdf",
-    "relevant_section": "Section 2",
-    "expected_keywords": ["Lance", "Apache Arrow", "Parquet", "columnar"],
+    "expected_keywords": [
+      "Lance",
+      "Apache Arrow",
+      "Parquet",
+      "columnar"
+    ],
     "gold_answer": "LanceDB is built on top of the Lance columnar data format, which is inspired by Apache Arrow and Parquet and tailored for machine learning and multimodal data.",
     "is_answerable": true,
-    "metadata_filter": {"format": "pdf"}
+    "metadata_filter": {
+      "format": "pdf"
+    },
+    "evidence": "inspired by Apache Arrow and Parquet"
   },
   {
     "id": "q06",
     "question": "Why does an idle LanceDB index incur zero compute cost?",
     "target_file": "vector_db_architecture.pdf",
-    "relevant_section": "Section 2",
-    "expected_keywords": ["zero compute", "serverless", "no background daemon", "zero-pod"],
+    "expected_keywords": [
+      "zero compute",
+      "serverless",
+      "no background daemon",
+      "zero-pod"
+    ],
     "gold_answer": "LanceDB is serverless and disk-native with no background daemon or persistent pod requirement; because it operates directly against NVMe disk or cloud object storage, an idle index incurs zero compute cost.",
     "is_answerable": true,
-    "metadata_filter": {"format": "pdf"}
+    "metadata_filter": {
+      "format": "pdf"
+    },
+    "evidence": "incurs zero compute cost"
   },
   {
     "id": "q07",
     "question": "How does Qdrant implement payload filtering during vector search?",
     "target_file": "vector_db_architecture.pdf",
-    "relevant_section": "Section 3",
-    "expected_keywords": ["single-stage", "graph traversal", "evaluates payload filters"],
+    "expected_keywords": [
+      "single-stage",
+      "graph traversal",
+      "evaluates payload filters"
+    ],
     "gold_answer": "Qdrant executes single-stage filtered search where payload filters are evaluated directly during the HNSW graph traversal, avoiding the connectivity degradation of pre-filtering and the result truncation of post-filtering.",
     "is_answerable": true,
-    "metadata_filter": {"format": "pdf"}
+    "metadata_filter": {
+      "format": "pdf"
+    },
+    "evidence": "evaluates payload filters"
   },
   {
     "id": "q08",
     "question": "How much RAM do 10 million 384-dimensional vectors and their HNSW indices consume?",
     "target_file": "vector_db_architecture.pdf",
-    "relevant_section": "Section 4",
-    "expected_keywords": ["15.36 GB", "25 GB", "RAM"],
+    "expected_keywords": [
+      "15.36 GB",
+      "25 GB",
+      "RAM"
+    ],
     "gold_answer": "At 10M vectors with 384 dimensions, raw embeddings consume 15.36 GB, and HNSW graph indices expand total memory consumption to over 25 GB.",
     "is_answerable": true,
-    "metadata_filter": {"format": "pdf"}
+    "metadata_filter": {
+      "format": "pdf"
+    },
+    "evidence": "15.36 GB"
   },
   {
     "id": "q09",
     "question": "What is the recommended chunk size for technical and engineering documents?",
     "target_file": "rag_chunking_guide.html",
-    "relevant_section": "Section 1",
-    "expected_keywords": ["400 to 600", "characters", "sweet spot"],
+    "expected_keywords": [
+      "400 to 600",
+      "characters",
+      "sweet spot"
+    ],
     "gold_answer": "For technical and engineering documents, a chunk size of 400 to 600 characters is the empirical sweet spot between semantic focus and contextual completeness.",
     "is_answerable": true,
-    "metadata_filter": {"format": "html"}
+    "metadata_filter": {
+      "format": "html"
+    },
+    "evidence": "400 to 600 characters"
   },
   {
     "id": "q10",
     "question": "What is the downside of using overly large chunk sizes in RAG?",
     "target_file": "rag_chunking_guide.html",
-    "relevant_section": "Section 1",
-    "expected_keywords": ["dilute", "multiple disparate ideas", "vector representation"],
+    "expected_keywords": [
+      "dilute",
+      "multiple disparate ideas",
+      "vector representation"
+    ],
     "gold_answer": "Large chunks dilute the vector representation because the embedding model must compress multiple disparate ideas into a single fixed-dimensional vector, leading to weaker semantic similarity matches.",
     "is_answerable": true,
-    "metadata_filter": {"format": "html"}
+    "metadata_filter": {
+      "format": "html"
+    },
+    "evidence": "dilute the vector representation"
   },
   {
     "id": "q11",
     "question": "Why is chunk overlap important when splitting documents?",
     "target_file": "rag_chunking_guide.html",
-    "relevant_section": "Section 2",
-    "expected_keywords": ["overlap", "boundary", "continuity", "split across chunk boundaries"],
+    "expected_keywords": [
+      "overlap",
+      "boundary",
+      "continuity",
+      "split across chunk boundaries"
+    ],
     "gold_answer": "Chunk overlap prevents critical information from being severed across chunk boundaries, ensuring semantic continuity across adjacent chunks without losing boundary tokens.",
     "is_answerable": true,
-    "metadata_filter": {"format": "html"}
+    "metadata_filter": {
+      "format": "html"
+    },
+    "evidence": "prevents critical information from being split"
   },
   {
     "id": "q12",
     "question": "How is idempotent re-ingestion guaranteed in the chunking pipeline?",
     "target_file": "rag_chunking_guide.html",
-    "relevant_section": "Section 2",
-    "expected_keywords": ["SHA-256", "doc_id", "chunk_index", "chunk_text", "idempotency"],
+    "expected_keywords": [
+      "SHA-256",
+      "doc_id",
+      "chunk_index",
+      "chunk_text",
+      "idempotency"
+    ],
     "gold_answer": "Idempotency is guaranteed by computing SHA-256 hashes on the composite tuple of (doc_id, chunk_index, chunk_text), ensuring repeated runs skip previously indexed vectors.",
     "is_answerable": true,
-    "metadata_filter": {"format": "html"}
+    "metadata_filter": {
+      "format": "html"
+    },
+    "evidence": "SHA-256 hashes"
   },
   {
     "id": "q13",
     "question": "What exact phrase must be returned when retrieved chunks fail to meet the similarity threshold?",
     "target_file": "rag_chunking_guide.html",
-    "relevant_section": "Section 3",
-    "expected_keywords": ["I do not have sufficient information in the provided context to answer this question."],
+    "expected_keywords": [
+      "I do not have sufficient information in the provided context to answer this question."
+    ],
     "gold_answer": "The system must reply with: 'I do not have sufficient information in the provided context to answer this question.'",
     "is_answerable": true,
-    "metadata_filter": {"format": "html"}
+    "metadata_filter": {
+      "format": "html"
+    },
+    "evidence": "I do not have sufficient information"
   },
   {
     "id": "q14",
     "question": "What is the primary factor driving monthly invoices on fully managed vector databases?",
     "target_file": "low_cost_indexing_strategies.md",
-    "relevant_section": "Section 1",
-    "expected_keywords": ["idle compute", "reserved RAM", "allocated cluster", "pods"],
+    "expected_keywords": [
+      "idle compute",
+      "reserved RAM",
+      "allocated cluster",
+      "pods"
+    ],
     "gold_answer": "Managed vector databases charge primarily for allocated cluster compute and reserved RAM pods; on lightly-queried indexes, over 98% of the bill pays for idle infrastructure.",
     "is_answerable": true,
-    "metadata_filter": {"format": "md"}
+    "metadata_filter": {
+      "format": "md"
+    },
+    "evidence": "idle compute"
   },
   {
     "id": "q15",
     "question": "What is the estimated monthly cost to store 100K 384-dimensional vectors in LanceDB?",
     "target_file": "low_cost_indexing_strategies.md",
-    "relevant_section": "Section 2",
-    "expected_keywords": ["$0.00", "embedded", "$0.01", "S3"],
+    "expected_keywords": [
+      "$0.00",
+      "embedded",
+      "$0.01",
+      "S3"
+    ],
     "gold_answer": "Storing 100K vectors in LanceDB costs $0.00 when embedded on the host or approximately $0.01 per month when backed by S3 storage, compared to $70/month on managed pods.",
     "is_answerable": true,
-    "metadata_filter": {"format": "md"}
+    "metadata_filter": {
+      "format": "md"
+    },
+    "evidence": "100K Vectors"
   },
   {
     "id": "q16",
     "question": "What is the monthly cost comparison for 10M vectors between managed pods and S3-backed LanceDB?",
     "target_file": "low_cost_indexing_strategies.md",
-    "relevant_section": "Section 2",
-    "expected_keywords": ["$288", "$0.35", "99.3%"],
+    "expected_keywords": [
+      "$288",
+      "$0.35",
+      "99.3%"
+    ],
     "gold_answer": "For 10M vectors, managed pods cost approximately $288.00 per month, whereas S3-backed LanceDB costs roughly $0.35 per month, achieving a 99.3% cost reduction.",
     "is_answerable": true,
-    "metadata_filter": {"format": "md"}
+    "metadata_filter": {
+      "format": "md"
+    },
+    "evidence": "10M Vectors"
   },
   {
     "id": "q17",
     "question": "What storage price per gigabyte-month was assumed for AWS S3 Standard in the cost model?",
     "target_file": "low_cost_indexing_strategies.md",
-    "relevant_section": "Section 2",
-    "expected_keywords": ["$0.023", "S3 Standard", "GB-month"],
+    "expected_keywords": [
+      "$0.023",
+      "S3 Standard",
+      "GB-month"
+    ],
     "gold_answer": "The cost model assumed AWS S3 Standard storage pricing of $0.023 per GB-month.",
     "is_answerable": true,
-    "metadata_filter": {"format": "md"}
+    "metadata_filter": {
+      "format": "md"
+    },
+    "evidence": "$0.023/GB-month"
   },
   {
     "id": "q18",
     "question": "What trade-off exists regarding concurrent writes in embedded vector stores?",
     "target_file": "low_cost_indexing_strategies.md",
-    "relevant_section": "Section 3",
-    "expected_keywords": ["file locks", "write contention", "concurrent writers"],
+    "expected_keywords": [
+      "file locks",
+      "write contention",
+      "concurrent writers"
+    ],
     "gold_answer": "Embedded stores rely on file locks, which creates write contention under heavy distributed concurrent write workloads exceeding 100 concurrent writers.",
     "is_answerable": true,
-    "metadata_filter": {"format": "md"}
+    "metadata_filter": {
+      "format": "md"
+    },
+    "evidence": "Embedded stores rely on file locks"
   },
   {
     "id": "q19",
     "question": "When should an engineering team switch back from a low-cost embedded store to a managed vector DB?",
     "target_file": "low_cost_indexing_strategies.md",
-    "relevant_section": "Section 3",
-    "expected_keywords": ["1,000 queries per second", "QPS", "sub-5ms p99", "distributed write"],
+    "expected_keywords": [
+      "1,000 queries per second",
+      "QPS",
+      "sub-5ms p99",
+      "distributed write"
+    ],
     "gold_answer": "A team should switch back to managed databases when query traffic exceeds 1,000 QPS with strict sub-5ms p99 SLAs, or when heavy distributed multi-node concurrent writes require centralized coordination.",
     "is_answerable": true,
-    "metadata_filter": {"format": "md"}
+    "metadata_filter": {
+      "format": "md"
+    },
+    "evidence": "1,000 queries per second"
   },
   {
     "id": "q20",
     "question": "What language is Qdrant implemented in?",
     "target_file": "vector_db_architecture.pdf",
-    "relevant_section": "Section 3",
-    "expected_keywords": ["Rust"],
+    "expected_keywords": [
+      "Rust"
+    ],
     "gold_answer": "Qdrant is an open-source vector search engine written in Rust.",
     "is_answerable": true,
-    "metadata_filter": {"format": "pdf"}
+    "metadata_filter": {
+      "format": "pdf"
+    },
+    "evidence": "written in Rust"
   },
   {
     "id": "q21",
     "question": "What was the stock price of Apple on January 1st, 1990?",
-    "target_file": "None",
-    "relevant_section": "None",
+    "target_file": null,
     "expected_keywords": [],
     "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
     "is_answerable": false,
-    "metadata_filter": null
+    "metadata_filter": null,
+    "evidence": null
   },
   {
     "id": "q22",
     "question": "How do you configure a Redis cluster with Sentinel failover in Kubernetes?",
-    "target_file": "None",
-    "relevant_section": "None",
+    "target_file": null,
     "expected_keywords": [],
     "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
     "is_answerable": false,
-    "metadata_filter": null
+    "metadata_filter": null,
+    "evidence": null
   },
   {
     "id": "q23",
     "question": "What are the primary symptoms and diagnostic treatments for Lyme disease?",
-    "target_file": "None",
-    "relevant_section": "None",
+    "target_file": null,
     "expected_keywords": [],
     "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
     "is_answerable": false,
-    "metadata_filter": null
+    "metadata_filter": null,
+    "evidence": null
   },
   {
     "id": "q24",
     "question": "Who won the FIFA World Cup in 2022 and what was the final score?",
-    "target_file": "None",
-    "relevant_section": "None",
+    "target_file": null,
     "expected_keywords": [],
     "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
     "is_answerable": false,
-    "metadata_filter": null
+    "metadata_filter": null,
+    "evidence": null
   },
   {
     "id": "q25",
-    "question": "What is the chemical formula and boiling point of liquid nitrogen?",
-    "target_file": "None",
-    "relevant_section": "None",
+    "question": "What value of the M parameter does FAISS use by default when building an HNSW index?",
+    "target_file": null,
+    "evidence": null,
     "expected_keywords": [],
     "gold_answer": "I do not have sufficient information in the provided context to answer this question.",
     "is_answerable": false,
-    "metadata_filter": null
+    "metadata_filter": null,
+    "note": "near-domain unanswerable: topic is covered but this fact is not in the corpus"
+  },
+  {
+    "id": "q26",
+    "question": "In what year was the term retrieval-augmented generation introduced?",
+    "target_file": "wiki_Retrieval-augmented_generation.html",
+    "evidence": "introduced in a 2020 paper",
+    "expected_keywords": [
+      "2020"
+    ],
+    "gold_answer": "The term retrieval-augmented generation was introduced in a 2020 paper.",
+    "is_answerable": true,
+    "metadata_filter": {
+      "format": "html"
+    }
+  },
+  {
+    "id": "q27",
+    "question": "Does cosine similarity depend on the magnitudes of the vectors?",
+    "target_file": "wiki_Cosine_similarity.html",
+    "evidence": "does not depend on the magnitudes of the vectors",
+    "expected_keywords": [
+      "angle",
+      "magnitudes"
+    ],
+    "gold_answer": "No. Cosine similarity does not depend on the magnitudes of the vectors, only on the angle between them.",
+    "is_answerable": true,
+    "metadata_filter": {
+      "format": "html"
+    }
+  },
+  {
+    "id": "q28",
+    "question": "What is 'prompt stuffing' in the context of RAG?",
+    "target_file": "wiki_Retrieval-augmented_generation.html",
+    "evidence": "prompt stuffing",
+    "expected_keywords": [
+      "prompt stuffing",
+      "context",
+      "prioritize"
+    ],
+    "gold_answer": "Prompt stuffing means adding relevant retrieved context to the user's input so the LLM prioritizes the supplied information over its pre-existing training knowledge.",
+    "is_answerable": true,
+    "metadata_filter": {
+      "format": "html"
+    }
+  },
+  {
+    "id": "q29",
+    "question": "Which techniques are commonly used for similarity search on high-dimensional vectors?",
+    "target_file": "wiki_Vector_database.html",
+    "evidence": "Locality-sensitive hashing",
+    "expected_keywords": [
+      "Locality-sensitive hashing",
+      "Product quantization",
+      "HNSW",
+      "Inverted files"
+    ],
+    "gold_answer": "Common techniques are HNSW graphs, locality-sensitive hashing (LSH) and sketching, product quantization (PQ), and inverted files.",
+    "is_answerable": true,
+    "metadata_filter": {
+      "format": "html"
+    }
+  },
+  {
+    "id": "q30",
+    "question": "What is a vector database?",
+    "target_file": "wiki_Vector_database.html",
+    "evidence": "stores and retrieves embeddings of data in vector space",
+    "expected_keywords": [
+      "embeddings",
+      "vector space",
+      "approximate nearest neighbor"
+    ],
+    "gold_answer": "A vector database (vector store or vector search engine) is a database that stores and retrieves embeddings of data in vector space, typically using approximate nearest neighbor algorithms so users can search for semantically similar records.",
+    "is_answerable": true,
+    "metadata_filter": {
+      "format": "html"
+    }
   }
 ]
