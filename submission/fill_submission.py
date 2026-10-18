@@ -118,7 +118,8 @@ if ok:
             (ans["exact_match_mean"], "normalised string match vs gold"), (ans["token_f1_mean"], "token F1 vs gold")]
     for i, (v, m) in enumerate(vals, start=1):
         set_cell(at[i].cells[1], str(v))
-        set_cell(at[i].cells[3], m)
+        set_cell(at[i].cells[2], "LLM-judge" if i <= 2 else "gold answers")
+        set_cell(at[i].cells[3], m + (" (24 answered of 25; refusals 5/5 unanswerable, 1/25 false refusal)" if i == 1 else ""))
 else:
     for i in range(1, 5):
         set_cell(at[i].cells[1], "PENDING")
