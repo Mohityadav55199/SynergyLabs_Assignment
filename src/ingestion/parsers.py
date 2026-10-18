@@ -30,6 +30,8 @@ class DocumentParser:
 
         for idx, page in enumerate(reader.pages):
             page_text = page.extract_text() or ""
+            # PDFs hard-wrap lines inside paragraphs; re-flow single newlines into spaces (keep blank-line paragraph breaks)
+            page_text = re.sub(r"(?<!\n)\n(?!\n)", " ", page_text)
             if page_text.strip():
                 text_parts.append(page_text)
                 page_info.append({"page": idx + 1, "char_count": len(page_text)})
@@ -57,9 +59,18 @@ class DocumentParser:
 
         soup = BeautifulSoup(html_content, "html.parser")
 
-        # Remove script and style elements
-        for script_or_style in soup(["script", "style", "noscript"]):
-            script_or_style.decompose()
+        # Remove non-content: scripts/styles, navigation chrome, footnote markers, navboxes, edit links
+        for tag in soup(["script", "style", "noscript", "nav", "footer", "aside", "header", "form", "sup"]):
+            tag.decompose()
+        noise = re.compile(r"navbox|sidebar|infobox|reflist|references|mw-editsection|hatnote|toc|catlinks|noprint|metadata|authority-control|mwe-math", re.I)
+        for tag in soup.find_all(class_=noise):
+            tag.decompose()
+        # Drop the trailing reference-style sections (these pollute retrieval with citations)
+        for heading in soup.find_all(["h2", "h3"]):
+            if heading.get_text(strip=True).lower() in {"references", "external links", "further reading", "see also", "notes", "sources"}:
+                for sib in list(heading.find_all_next(["h2", "h3", "p", "li"])):
+                    sib.decompose()
+                break
 
         title = soup.title.string.strip() if soup.title and soup.title.string else file_path.stem
 

@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional, Set, TYPE_CHECKING
 import lancedb
 import pyarrow as pa
 from src.config import settings
-from src.vector_stores.base import BaseVectorStore, SearchResult
+from src.vector_stores.base import BaseVectorStore, SearchResult, validate_metadata_filter
 
 if TYPE_CHECKING:
     from src.ingestion.chunker import Chunk
@@ -51,15 +51,22 @@ class LanceDBVectorStore(BaseVectorStore):
             )
 
     def get_existing_hashes(self) -> Set[str]:
-        if self.table is None or self.table.count_rows() == 0:
+        # Errors propagate on purpose: returning an empty set on failure would silently
+        # re-insert every chunk and break idempotency.
+        if self.table.count_rows() == 0:
             return set()
-        try:
-            arrow_tbl = self.table.to_arrow()
-            if "chunk_hash" in arrow_tbl.column_names:
-                return set(arrow_tbl["chunk_hash"].to_pylist())
-            return set()
-        except Exception as e:
-            return set()
+        rows = self.table.search().select(["chunk_hash"]).limit(self.table.count_rows()).to_arrow()
+        return set(rows["chunk_hash"].to_pylist())
+
+    def count(self) -> int:
+        return self.table.count_rows()
+
+    def delete_stale_versions(self, filename: str, keep_doc_id: str) -> int:
+        before = self.table.count_rows()
+        fn = filename.replace("'", "''")
+        did = keep_doc_id.replace("'", "''")
+        self.table.delete(f"filename = '{fn}' AND doc_id != '{did}'")
+        return before - self.table.count_rows()
 
     def insert_chunks(self, chunks: List[Chunk], vectors: List[List[float]]) -> int:
         if not chunks:
@@ -97,25 +104,17 @@ class LanceDBVectorStore(BaseVectorStore):
         top_k: int = 4,
         metadata_filter: Optional[Dict[str, Any]] = None
     ) -> List[SearchResult]:
+        clean_filter = validate_metadata_filter(metadata_filter)  # validate even when the table is empty
         if self.table is None or self.table.count_rows() == 0:
             return []
 
         query = self.table.search(query_vector).metric("cosine").limit(top_k)
 
-        # Apply metadata filter (e.g. format = 'pdf', doc_id = '...')
-        if metadata_filter:
-            filter_clauses = []
-            for key, val in metadata_filter.items():
-                if isinstance(val, str):
-                    clean_val = val.replace("'", "''")
-                    filter_clauses.append(f"{key} = '{clean_val}'")
-                elif isinstance(val, (int, float)):
-                    filter_clauses.append(f"{key} = {val}")
-                elif isinstance(val, bool):
-                    filter_clauses.append(f"{key} = {str(val).lower()}")
-            if filter_clauses:
-                where_clause = " AND ".join(filter_clauses)
-                query = query.where(where_clause)
+        if clean_filter:
+            where_clause = " AND ".join(
+                f"{key} = '{val.replace(chr(39), chr(39) * 2)}'" for key, val in clean_filter.items()
+            )
+            query = query.where(where_clause, prefilter=True)
 
         results = query.to_list()
         search_results: List[SearchResult] = []

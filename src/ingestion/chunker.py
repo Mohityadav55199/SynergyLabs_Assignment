@@ -27,12 +27,44 @@ class DocumentChunker:
         chunk_overlap: Optional[int] = None,
         separators: Optional[List[str]] = None
     ):
-        self.chunk_size = chunk_size or settings.default_chunk_size
-        self.chunk_overlap = chunk_overlap or settings.default_chunk_overlap
+        # `is None` (not `or`) so an explicit overlap of 0 is respected.
+        self.chunk_size = settings.default_chunk_size if chunk_size is None else chunk_size
+        self.chunk_overlap = settings.default_chunk_overlap if chunk_overlap is None else chunk_overlap
         self.separators = separators or ["\n\n", "\n", ". ", "? ", "! ", " ", ""]
 
+        if self.chunk_size <= 0:
+            raise ValueError(f"chunk_size must be positive (got {self.chunk_size})")
+        if self.chunk_overlap < 0:
+            raise ValueError(f"chunk_overlap must be >= 0 (got {self.chunk_overlap})")
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError(f"chunk_overlap ({self.chunk_overlap}) must be strictly less than chunk_size ({self.chunk_size})")
+
+    def _overlap_tail(self, chunk: str) -> str:
+        """Last ~chunk_overlap characters of `chunk`, advanced to a word boundary so overlap never starts mid-word."""
+        if self.chunk_overlap == 0 or len(chunk) <= self.chunk_overlap:
+            return ""
+        tail = chunk[-self.chunk_overlap:]
+        first_space = tail.find(" ")
+        return tail[first_space + 1:] if 0 <= first_space < len(tail) - 1 else tail
+
+    @staticmethod
+    def _merge_tiny_chunks(chunks: List[str], min_chars: int = 100) -> List[str]:
+        """Prepends chunks shorter than `min_chars` (typically a stranded heading) to the next chunk."""
+        merged: List[str] = []
+        carry = ""
+        for c in chunks:
+            c = f"{carry}\n{c}".strip() if carry else c
+            carry = ""
+            if len(c) < min_chars:
+                carry = c
+            else:
+                merged.append(c)
+        if carry:
+            if merged:
+                merged[-1] = f"{merged[-1]}\n{carry}"
+            else:
+                merged.append(carry)
+        return merged
 
     def _split_text(self, text: str) -> List[str]:
         """Recursively splits text using the hierarchy of separators."""
@@ -47,7 +79,12 @@ class DocumentChunker:
                 chosen_sep = sep
                 break
 
-        if chosen_sep:
+        joiner = chosen_sep
+        if chosen_sep in (". ", "? ", "! "):
+            # Split after sentence-final punctuation but keep it, so no sentence loses its full stop at a chunk edge.
+            splits = re.split(r"(?<=[.?!])\s+", text)
+            joiner = " "
+        elif chosen_sep:
             splits = text.split(chosen_sep)
         else:
             # Fallback to direct character slicing
@@ -57,7 +94,7 @@ class DocumentChunker:
         current_chunk = ""
 
         for part in splits:
-            candidate = f"{current_chunk}{chosen_sep}{part}" if current_chunk else part
+            candidate = f"{current_chunk}{joiner}{part}" if current_chunk else part
             if len(candidate) <= self.chunk_size:
                 current_chunk = candidate
             else:
@@ -75,7 +112,7 @@ class DocumentChunker:
                     current_chunk = ""
                 else:
                     # Apply overlap from the tail of current_chunk if possible
-                    overlap_prefix = current_chunk[-self.chunk_overlap:] if len(current_chunk) > self.chunk_overlap else ""
+                    overlap_prefix = self._overlap_tail(current_chunk)
                     current_chunk = f"{overlap_prefix} {part}".strip()
 
         if current_chunk and current_chunk.strip():
@@ -94,15 +131,16 @@ class DocumentChunker:
         """
         Splits parsed document text into typed, indexed chunks with SHA-256 fingerprinting.
         """
-        raw_chunks = self._split_text(text)
+        text = re.sub(r"[ \t]+", " ", text)          # collapse HTML/PDF indentation runs
+        raw_chunks = self._merge_tiny_chunks(self._split_text(text))
         chunks: List[Chunk] = []
         current_section = "General"
 
         for idx, chunk_text in enumerate(raw_chunks):
             # Check for header indicator in chunk
-            header_match = re.search(r"^(?:#+|\b(?:Section|Chapter)\b)\s*(.+)$", chunk_text, re.MULTILINE | re.IGNORECASE)
+            header_match = re.search(r"^(?:#+\s*(.+)|((?:Section|Chapter)\s+\d+.*))$", chunk_text, re.MULTILINE | re.IGNORECASE)
             if header_match:
-                current_section = header_match.group(1).strip()[:80]
+                current_section = (header_match.group(1) or header_match.group(2)).strip()[:80]
 
             # Deterministic chunk hash based on content and position
             hash_input = f"{doc_id}:{idx}:{chunk_text.strip()}"

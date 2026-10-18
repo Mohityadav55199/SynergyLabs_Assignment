@@ -12,10 +12,11 @@ from qdrant_client.models import (
     Filter,
     FieldCondition,
     MatchValue,
+    FilterSelector,
     PayloadSchemaType
 )
 from src.config import settings
-from src.vector_stores.base import BaseVectorStore, SearchResult
+from src.vector_stores.base import BaseVectorStore, SearchResult, validate_metadata_filter
 
 if TYPE_CHECKING:
     from src.ingestion.chunker import Chunk
@@ -65,6 +66,21 @@ class QdrantVectorStore(BaseVectorStore):
             offset = next_offset
         return existing_hashes
 
+    def count(self) -> int:
+        return self.client.count(collection_name=self.COLLECTION_NAME, exact=True).count
+
+    def delete_stale_versions(self, filename: str, keep_doc_id: str) -> int:
+        before = self.count()
+        self.client.delete(
+            collection_name=self.COLLECTION_NAME,
+            points_selector=FilterSelector(filter=Filter(
+                must=[FieldCondition(key="filename", match=MatchValue(value=filename))],
+                must_not=[FieldCondition(key="doc_id", match=MatchValue(value=keep_doc_id))],
+            )),
+            wait=True,
+        )
+        return before - self.count()
+
     def insert_chunks(self, chunks: List[Chunk], vectors: List[List[float]]) -> int:
         if not chunks:
             return 0
@@ -113,18 +129,15 @@ class QdrantVectorStore(BaseVectorStore):
         top_k: int = 4,
         metadata_filter: Optional[Dict[str, Any]] = None
     ) -> List[SearchResult]:
+        clean_filter = validate_metadata_filter(metadata_filter)
         if not self.client.collection_exists(self.COLLECTION_NAME):
             return []
 
         query_filter = None
-        if metadata_filter:
-            must_conditions = []
-            for key, val in metadata_filter.items():
-                must_conditions.append(
-                    FieldCondition(key=key, match=MatchValue(value=val))
-                )
-            if must_conditions:
-                query_filter = Filter(must=must_conditions)
+        if clean_filter:
+            query_filter = Filter(must=[
+                FieldCondition(key=key, match=MatchValue(value=val)) for key, val in clean_filter.items()
+            ])
 
         response = self.client.query_points(
             collection_name=self.COLLECTION_NAME,
