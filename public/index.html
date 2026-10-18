@@ -1533,6 +1533,7 @@
 
     async function loadDocuments() {
       try {
+        const endpoint = document.getElementById('apiEndpoint').value.trim().replace(/\/$/, "");
         const res = await fetch(`${endpoint}/documents?store=${currentStore}`);
         if (!res.ok) return;
         const data = await res.json();

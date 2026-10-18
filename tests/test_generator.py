@@ -99,3 +99,32 @@ def test_unavailable_model_falls_back_to_an_available_one(monkeypatch):
     out = svc._generate("prompt")
     assert out["model"] == "openai/gpt-oss-20b" and calls[0] == "retired-model"
     assert svc._generate("again")["model"] == "openai/gpt-oss-20b"   # cached: no second failure
+
+
+def test_rate_limited_model_fails_over_without_changing_default(monkeypatch):
+    class RateLimitError(Exception):
+        pass
+
+    class Msg:
+        content = "Fact [Chunk-1]."
+
+    class Resp:
+        choices = [type("C", (), {"message": Msg()})()]
+        usage = None
+
+    class Completions:
+        def create(self, **kw):
+            if kw["model"] == "qwen/qwen3.8-27b":
+                raise RateLimitError("429")
+            return Resp()
+
+    client = type("G", (), {
+        "chat": type("Ch", (), {"completions": Completions()})(),
+        "models": type("M", (), {"list": lambda self: type("L", (), {"data": [
+            type("X", (), {"id": "qwen/qwen3.8-27b"})(), type("X", (), {"id": "openai/gpt-oss-20b"})()]})()})(),
+    })()
+    monkeypatch.setattr(llm.settings, "groq_model", "qwen/qwen3.8-27b")
+    svc = GroundedRAGService.__new__(GroundedRAGService)
+    svc.groq_client = client
+    assert svc._generate("p")["model"] == "openai/gpt-oss-20b"
+    assert svc._resolve_model() == "qwen/qwen3.8-27b"     # a rate limit is transient: keep the preferred model

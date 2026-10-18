@@ -86,18 +86,18 @@ class GroundedRAGService:
         self._model = settings.groq_model
         return self._model
 
-    def _fallback_model(self, failed: str) -> Optional[str]:
-        try:
-            available = {m.id for m in self.groq_client.models.list().data}
-        except Exception as exc:
-            logger.error("Cannot list Groq models: %s", exc)
-            return None
-        for m in self.FALLBACK_MODELS:
-            if m in available and m != failed:
-                logger.warning("Model '%s' unavailable for this key; falling back to '%s'", failed, m)
-                self._model = m
-                return m
-        return None
+    def _available_models(self) -> set:
+        if getattr(self, "_avail", None) is None:
+            try:
+                self._avail = {m.id for m in self.groq_client.models.list().data}
+            except Exception as exc:
+                logger.error("Cannot list Groq models: %s", exc)
+                return set()
+        return self._avail
+
+    def _fallback_candidates(self, tried: set) -> List[str]:
+        available = self._available_models()
+        return [m for m in self.FALLBACK_MODELS if m in available and m not in tried]
 
     def _chat(self, model: str, user_prompt: str):
         kwargs: Dict[str, Any] = dict(
@@ -118,18 +118,26 @@ class GroundedRAGService:
             raise
 
     def _generate(self, user_prompt: str) -> Dict[str, Any]:
-        """Calls the Groq chat model. Raises on failure (the caller degrades gracefully)."""
+        """Calls Groq. If the model is retired (NotFound) or rate-limited, fails over to the next available model.
+        A NotFound model becomes the new default for this process; a rate limit only affects this one request."""
+        tried: set = set()
         model = self._resolve_model()
-        try:
-            resp = self._chat(model, user_prompt)
-        except Exception as exc:
-            if type(exc).__name__ != "NotFoundError":
-                raise
-            fallback = self._fallback_model(model)
-            if not fallback:
-                raise
-            model = fallback
-            resp = self._chat(model, user_prompt)
+        while True:
+            tried.add(model)
+            try:
+                resp = self._chat(model, user_prompt)
+                break
+            except Exception as exc:
+                kind = type(exc).__name__
+                if kind not in ("NotFoundError", "RateLimitError"):
+                    raise
+                candidates = self._fallback_candidates(tried)
+                if not candidates:
+                    raise
+                logger.warning("Model '%s' failed (%s); trying '%s'", model, kind, candidates[0])
+                if kind == "NotFoundError":
+                    self._model = candidates[0]
+                model = candidates[0]
         usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         if resp.usage:
             usage = {
