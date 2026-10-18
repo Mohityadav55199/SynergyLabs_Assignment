@@ -1008,11 +1008,11 @@
       <!-- Stats Summary -->
       <div class="stats-summary-card">
         <div class="stats-row">
-          <span>📄 <strong>3</strong> documents</span>
-          <span>🧩 <strong>15</strong> chunks</span>
+          <span>📄 <strong id="statDocs">-</strong> documents</span>
+          <span>🧩 <strong id="statChunks">-</strong> chunks</span>
         </div>
         <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem;">
-          💾 499.8 MB left of 500 MB (Embedded Store)
+          <span id="statDisk">💾 loading index stats…</span>
         </div>
       </div>
 
@@ -1037,41 +1037,7 @@
         </div>
         <p class="recent-docs-subtitle">Your latest uploads and their indexing status</p>
 
-        <!-- Doc Item 1 -->
-        <div class="doc-item" onclick="setQueryFromDoc('vector_db_architecture.pdf')">
-          <div class="doc-main">
-            <span class="doc-file-icon">📄</span>
-            <div class="doc-details">
-              <div class="doc-name" title="vector_db_architecture.pdf">vector_db_architecture.pdf</div>
-              <div class="doc-sub">PDF &bull; 3.4 KB &bull; 6 chunks</div>
-            </div>
-          </div>
-          <span class="doc-status-badge">Indexed</span>
-        </div>
-
-        <!-- Doc Item 2 -->
-        <div class="doc-item" onclick="setQueryFromDoc('rag_chunking_guide.html')">
-          <div class="doc-main">
-            <span class="doc-file-icon">📄</span>
-            <div class="doc-details">
-              <div class="doc-name" title="rag_chunking_guide.html">rag_chunking_guide.html</div>
-              <div class="doc-sub">HTML &bull; 4.1 KB &bull; 5 chunks</div>
-            </div>
-          </div>
-          <span class="doc-status-badge">Indexed</span>
-        </div>
-
-        <!-- Doc Item 3 -->
-        <div class="doc-item" onclick="setQueryFromDoc('low_cost_indexing_strategies.md')">
-          <div class="doc-main">
-            <span class="doc-file-icon">📄</span>
-            <div class="doc-details">
-              <div class="doc-name" title="low_cost_indexing_strategies.md">low_cost_indexing_strategies.md</div>
-              <div class="doc-sub">MD &bull; 2.8 KB &bull; 4 chunks</div>
-            </div>
-          </div>
-          <span class="doc-status-badge">Indexed</span>
-        </div>
+        <div id="docList"><p class="recent-docs-subtitle">Loading…</p></div>
       </div>
     </aside>
 
@@ -1189,6 +1155,7 @@
       document.getElementById('storeLanceBtn').className = store === 'lancedb' ? 'toggle-opt active' : 'toggle-opt';
       document.getElementById('storeQdrantBtn').className = store === 'qdrant' ? 'toggle-opt active' : 'toggle-opt';
       document.getElementById('modalStoreSelect').value = store;
+      if (typeof loadDocuments === 'function' && isBackendReady) loadDocuments();
     }
 
     function startNewChat() {
@@ -1530,9 +1497,10 @@
         const result = await res.json();
         textEl.innerHTML = `
           ✅ <strong>Uploaded &amp; Indexed:</strong> <code>${escapeHtml(file.name)}</code>
-          <br>Generated <strong>${result.chunks_count} chunks</strong> into ${currentStore.toUpperCase()}! You can now ask questions about this document.
+          <br>${result.inserted_chunks} new chunks indexed (${result.skipped_duplicates} duplicates skipped) into ${currentStore.toUpperCase()}. You can now ask questions about this document.
         `;
         markBackendActive();
+        loadDocuments();
       } catch (err) {
         clearInterval(uploadTimer);
         const isCold = !err.message || err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('502') || err.message.includes('503') || err.message.includes('504');
@@ -1561,6 +1529,28 @@
       } finally {
         scrollToBottom();
       }
+    }
+
+    async function loadDocuments() {
+      try {
+        const res = await fetch(`${endpoint}/documents?store=${currentStore}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('statDocs').textContent = data.total_documents;
+        document.getElementById('statChunks').textContent = data.total_chunks;
+        document.getElementById('statDisk').textContent = `💾 ${data.disk_size_mb} MB on disk (${currentStore})`;
+        document.getElementById('docList').innerHTML = data.documents.map(d => `
+          <div class="doc-item" onclick="setQueryFromDoc('${escapeHtml(d.filename).replace(/'/g, '')}')">
+            <div class="doc-main">
+              <span class="doc-file-icon">📄</span>
+              <div class="doc-details">
+                <div class="doc-name" title="${escapeHtml(d.filename)}">${escapeHtml(d.filename)}</div>
+                <div class="doc-sub">${escapeHtml(d.format.toUpperCase())} &bull; ${d.chunks} chunks</div>
+              </div>
+            </div>
+            <span class="doc-status-badge">Indexed</span>
+          </div>`).join('');
+      } catch (e) { /* sidebar is cosmetic; chat still works */ }
     }
 
     function markBackendActive(latencyMs) {
@@ -1633,6 +1623,7 @@
           isBackendReady = true;
           clearInterval(healthTimer);
           markBackendActive(latency);
+          loadDocuments();
 
           if (landingNotice) landingNotice.style.display = 'none';
 

@@ -66,7 +66,7 @@ python -m src.cli ingest --store qdrant                # optional second store
 python -m src.cli query "What is the memory overhead per vector for an HNSW index?" --k 4
 python -m src.cli query "What is the chunk overlap default?" --filter format=html
 python -m src.cli serve                                # http://localhost:8000/docs
-python -m pytest tests                                 # 54 tests
+python -m pytest tests                                 # 55 tests
 python -m evaluation.harness                           # all three evaluation layers
 ```
 
@@ -206,6 +206,6 @@ src/ api/main.py  cli.py  config.py | ingestion/{parsers,chunker,pipeline}.py | 
 evaluation/ dataset.json  ground_truth.py  ir_metrics.py  judge.py  harness.py
             chunking_ablation.py  scale_benchmark.py  cost_model.py
             results_*.json  results_summary.md  cost_analysis.md
-tests/      chunker, stores (both backends), IR metrics, judge parsing, generator, API   (54 tests)
+tests/      chunker, stores (both backends), IR metrics, judge parsing, generator, API   (55 tests)
 public/     static chat UI (Vercel)      render.yaml  Dockerfile  .github/workflows/keep-warm.yml
 ```

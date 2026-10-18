@@ -76,6 +76,15 @@ def health_check():
 def get_store_stats(store: Optional[Literal["lancedb", "qdrant"]] = None):
     return get_vector_store(store or settings.default_vector_store).get_stats()
 
+@app.get("/documents", tags=["System"])
+def list_documents(store: Optional[Literal["lancedb", "qdrant"]] = None):
+    """Indexed documents with chunk counts (drives the UI sidebar)."""
+    target = get_vector_store(store or settings.default_vector_store)
+    docs = target.list_documents()
+    stats = target.get_stats()
+    return {"documents": docs, "total_documents": len(docs), "total_chunks": sum(d["chunks"] for d in docs),
+            "disk_size_mb": stats.get("disk_size_mb")}
+
 @app.post("/ingest", response_model=IngestionReport, tags=["Ingestion"], dependencies=[Depends(require_admin)])
 def ingest_directory(req: IngestDirectoryRequest):
     dir_path = Path(req.directory_path or settings.corpus_dir)

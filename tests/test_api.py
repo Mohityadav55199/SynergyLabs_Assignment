@@ -55,3 +55,11 @@ def test_admin_token_protects_ingest(client, monkeypatch):
     assert client.post("/ingest/upload", files={"file": ("a.md", b"x" * 300)}).status_code == 401
     ok = client.post("/ingest/upload", files={"file": ("a.md", b"hello there " * 50)}, headers={"X-Admin-Token": "s3cret"})
     assert ok.status_code == 200
+
+
+def test_documents_endpoint_reflects_uploads(client):
+    assert client.get("/documents").json()["total_documents"] == 0
+    client.post("/ingest/upload", files={"file": ("d.md", b"# Doc\n" + b"alpha beta gamma delta " * 80)})
+    body = client.get("/documents").json()
+    assert body["total_documents"] == 1 and body["documents"][0]["filename"] == "d.md"
+    assert body["total_chunks"] == body["documents"][0]["chunks"] > 0

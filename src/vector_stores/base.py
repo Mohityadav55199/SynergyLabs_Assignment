@@ -75,6 +75,10 @@ class BaseVectorStore(ABC):
         """Number of vectors stored."""
 
     @abstractmethod
+    def list_documents(self) -> List[Dict[str, Any]]:
+        """[{filename, format, chunks}] for every indexed document, sorted by filename."""
+
+    @abstractmethod
     def get_stats(self) -> Dict[str, Any]:
         """Total vectors, disk footprint, model metadata, etc."""
 

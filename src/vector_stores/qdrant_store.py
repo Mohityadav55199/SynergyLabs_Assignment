@@ -66,6 +66,19 @@ class QdrantVectorStore(BaseVectorStore):
             offset = next_offset
         return existing_hashes
 
+    def list_documents(self) -> List[Dict[str, Any]]:
+        counts: Dict[tuple, int] = {}
+        offset = None
+        while True:
+            records, offset = self.client.scroll(collection_name=self.COLLECTION_NAME, limit=200, offset=offset,
+                                                 with_payload=["filename", "format"], with_vectors=False)
+            for r in records:
+                key = ((r.payload or {}).get("filename", ""), (r.payload or {}).get("format", ""))
+                counts[key] = counts.get(key, 0) + 1
+            if offset is None:
+                break
+        return [{"filename": f, "format": fmt, "chunks": c} for (f, fmt), c in sorted(counts.items())]
+
     def count(self) -> int:
         return self.client.count(collection_name=self.COLLECTION_NAME, exact=True).count
 

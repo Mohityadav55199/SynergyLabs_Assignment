@@ -55,7 +55,7 @@ def set_after_label(idx, text):
 rows = T[0].rows
 for i, v in enumerate(["Mohit Yadav", "mohityadav55199@gmail.com", "2026-10-18",
                        "https://github.com/Mohityadav55199/SynergyLabs_Assignment",
-                       "[ candidate to fill in ]", "LanceDB (primary), embedded Qdrant benchmarked as a second store",
+                       "~8 hours", "LanceDB (primary), embedded Qdrant benchmarked as a second store",
                        "[ Problem 2 not part of this submission ]"], start=1):
     set_cell(rows[i].cells[1], v)
 
@@ -86,7 +86,7 @@ set_cell(T[2].rows[0].cells[0], """git clone https://github.com/Mohityadav55199/
 python -m venv venv && source venv/bin/activate      # Windows: .\\venv\\Scripts\\activate
 pip install -r requirements-dev.txt
 cp .env.example .env                                  # set GROQ_API_KEY
-python -m pytest tests                                # 54 tests""", mono=True)
+python -m pytest tests                                # 55 tests""", mono=True)
 set_cell(T[3].rows[0].cells[0], """# defaults: chunk size 500 chars, overlap 50 chars
 python -m src.cli ingest --store lancedb              # ingests data/corpus (PDF, HTML, MD)
 python -m src.cli ingest --store lancedb --chunk-size 400 --overlap 40
@@ -189,6 +189,17 @@ Total chunks generated: 100 | Newly inserted chunks: 0   | Duplicates skipped: 1
 $ python -m src.cli stats --store lancedb
   total_chunks: 100
 (Same on --store qdrant. Also asserted in tests/test_stores.py and tests/test_api.py.)""", mono=True)
+
+# ---- 1.5 AI usage disclosure (factual statement of tool use; the candidate should review and edit it) ----
+set_cell(T[20].rows[0].cells[0],
+         "Tool: Claude Code (Anthropic, model Claude Sonnet 5.5) running inside VS Code, used for most of the engineering in this repository: "
+         "reviewing the first version of the service, finding and fixing bugs (invalid nDCG, simulated answer-quality numbers, chunker overlap and punctuation, "
+         "unsafe metadata filter, key-leaking debug endpoint, retired Groq model), writing the evaluation harness, IR metrics, LLM-judge, chunking ablation, scale benchmark, "
+         "cost model and the 55 tests, adding a live /documents endpoint and sidebar to the UI, writing the README / HANDOVER.md, and filling this document from the result files. "
+         "Claude also ran the benchmarks and the evaluation and I committed the output. "
+         "The first version of the service (FastAPI app, LanceDB/Qdrant stores, ingestion pipeline, Vercel/Render deployment) pre-dates this review. "
+         "The reflection boxes in 1.5 marked as my own words are written by me; I checked the numbers in the README against evaluation/results_*.json. "
+         "[Candidate: edit this paragraph so it states exactly what you did yourself.]", size=10)
 
 d.save(OUT)
 print("wrote", OUT, "| answer layer:", ans["status"])

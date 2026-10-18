@@ -61,6 +61,17 @@ class LanceDBVectorStore(BaseVectorStore):
     def count(self) -> int:
         return self.table.count_rows()
 
+    def list_documents(self) -> List[Dict[str, Any]]:
+        n = self.table.count_rows()
+        if n == 0:
+            return []
+        rows = self.table.search().select(["filename", "format"]).limit(n).to_arrow().to_pylist()
+        counts: Dict[tuple, int] = {}
+        for r in rows:
+            key = (r["filename"], r["format"])
+            counts[key] = counts.get(key, 0) + 1
+        return [{"filename": f, "format": fmt, "chunks": c} for (f, fmt), c in sorted(counts.items())]
+
     def delete_stale_versions(self, filename: str, keep_doc_id: str) -> int:
         before = self.table.count_rows()
         fn = filename.replace("'", "''")
